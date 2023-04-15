@@ -65,7 +65,7 @@ model Estados_turnos {
 
 model Servicios {
   id               Int              @id @default(autoincrement())
-  descripcion      String           @db.VarChar(35)
+  descripcion      String           @db.VarChar(50)
   nombre_corto     String           @db.VarChar(20)
   prefijo          String           @db.VarChar(3)
   grupo            Grupos_servicios @relation(fields: [grupo_id], references: [id])
@@ -76,7 +76,6 @@ model Servicios {
   turnos                    Turnos[]
   servicios_sucursales      Servicios_sucursales[]
   atenciones_turno_servicio Atenciones_turnos_servicios[]
-  agentes                   Agentes[]
   grabaciones_servicios     Grabaciones_servicios[]
   tipos_protocolos          Tipos_protocolos[]
   servicios_seguros         Servicios_seguros[]
@@ -91,6 +90,7 @@ model Grupos_servicios {
 
   servicio                Servicios[]
   opciones_menu_servicios Opciones_menu_servicios[]
+  agente                  Agentes[]
 }
 
 model Atenciones_turnos_servicios {
@@ -198,8 +198,8 @@ model Agentes {
   id             Int           @id @default(autoincrement())
   nombre         String        @db.VarChar(30)
   descripcion    String        @db.VarChar(50)
-  servicio       Servicios     @relation(fields: [servicio_id], references: [id])
-  servicio_id    Int
+  grupo_servicio       Grupos_servicios     @relation(fields: [grupo_servicio_id], references: [id])
+  grupo_servicio_id    Int
   tipo_agente    Tipos_agentes @relation(fields: [tipo_agente_id], references: [id])
   tipo_agente_id Int
   usuario        Usuarios      @relation(fields: [usuario_id], references: [id])
@@ -490,13 +490,14 @@ model Servicios_dependientes {
 
 model Usuarios {
   id        Int      @id @default(autoincrement())
-  nombres   String   @db.VarChar(50)
-  correo    String   @db.VarChar(60)
-  username  String   @db.VarChar(15)
+  nombres   String   @db.VarChar(50) @unique
+  correo    String   @db.VarChar(60) @unique
+  username  String   @db.VarChar(15) @unique
   password  String   @db.VarChar(255)
   rol       Roles    @relation(fields: [rol_id], references: [id])
   rol_id    Int
   activo    Boolean  @default(true)
+  token     String   @db.VarChar(255)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -510,8 +511,8 @@ model Usuarios {
 
 model Roles {
   id          Int     @id @default(autoincrement())
-  nombre      String  @db.VarChar(20)
-  descripcion String  @db.VarChar(30)
+  nombre      String  @db.VarChar(20) @unique
+  descripcion String  @db.VarChar(50)
   activo      Boolean @default(true)
 
   usuarios       Usuarios[]

@@ -6,9 +6,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const App = (0, express_1.default)();
-const port = process.env.port || 3000;
-App.use(cors_1.default);
-App.listen(port, () => {
-    console.log('Server Express running on port ' + port);
+const PORT = process.env.port || 5000;
+App.use((0, cors_1.default)({
+    origin: '*',
+    optionsSuccessStatus: 204 // some legacy browsers (IE11, various SmartTVs) choke on 204
+}));
+App.listen(PORT, () => {
+    console.log('Server Express running on port ' + PORT);
 });
 exports.default = App;
