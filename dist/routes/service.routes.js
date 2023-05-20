@@ -1,0 +1,22 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const activeToken_middlewares_1 = require("../middlewares/activeToken.middlewares");
+const service_controller_1 = require("../controllers/service.controller");
+const serviceGroup_controller_1 = require("../controllers/serviceGroup.controller");
+const activeUser_middlewares_1 = require("../middlewares/activeUser.middlewares");
+const router = express_1.default.Router();
+router.get('/groups/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.GetAllServicesGroup);
+router.get('/groups/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.GetServiceGroupById);
+router.post('/groups/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.StoreNewServiceGroup);
+router.put('/groups/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.UpdateServiceGroup);
+router.delete('/groups/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.DeleteServiceGroup);
+router.get('/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.GetAllServices);
+router.get('/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.GetServiceById);
+router.post('/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.StoreNewService);
+router.put('/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.UpdateService);
+router.delete('/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.DeleteService);
+exports.default = router;

@@ -36,8 +36,8 @@ enum Tipado_marcas_tv {
 model Turnos {
   id                  Int            @id @default(autoincrement())
   secuencia_ticket    String         @db.VarChar(5)
-  servicio_actual     Servicios      @relation(fields: [servicio_actual_id], references: [id])
   servicio_actual_id  Int
+  servicio_destino    Servicios      @relation(fields: [servicio_destino_id], references: [id])
   servicio_destino_id Int
   estado_turno        Estados_turnos @relation(fields: [estado_turno_id], references: [id])
   estado_turno_id     Int
@@ -46,9 +46,10 @@ model Turnos {
   cliente_id          Int
   sucursal            Sucursales     @relation(fields: [sucursal_id], references: [id])
   sucursal_id         Int
+  fecha_turno         DateTime       @db.Date @default(now())
   registrado_por      Usuarios       @relation(fields: [registrado_por_id], references: [id])
   registrado_por_id   Int
-  createdAt           DateTime       @default(now())
+  createdAt           DateTime?      @default(now())
 
   atenciones_turnos_servicios Atenciones_turnos_servicios[]
 }
@@ -70,17 +71,17 @@ model Servicios {
   prefijo          String           @db.VarChar(3)
   grupo            Grupos_servicios @relation(fields: [grupo_id], references: [id])
   grupo_id         Int
-  es_seleccionable Boolean          @default(true)
-  estatus          Boolean          @default(true)
+  es_seleccionable Boolean?         @default(true)
+  estatus          Boolean?         @default(true)
 
   turnos                    Turnos[]
   servicios_sucursales      Servicios_sucursales[]
   atenciones_turno_servicio Atenciones_turnos_servicios[]
   grabaciones_servicios     Grabaciones_servicios[]
-  tipos_protocolos          Tipos_protocolos[]
   servicios_seguros         Servicios_seguros[]
   servicios_dependientes    Servicios_dependientes[]
   tipos_visitas             Tipos_visitas[]
+  Servicios_departamentos_sucursales Servicios_departamentos_sucursales[]
 }
 
 model Grupos_servicios {
@@ -94,7 +95,6 @@ model Grupos_servicios {
 }
 
 model Atenciones_turnos_servicios {
-  id            Int       @id @default(autoincrement())
   turno         Turnos    @relation(fields: [turno_id], references: [id])
   turno_id      Int
   agente        Agentes   @relation(fields: [agente_id], references: [id])
@@ -104,27 +104,29 @@ model Atenciones_turnos_servicios {
   hora_inicio   DateTime? @db.Time(0)
   hora_fin      DateTime? @db.Time(0)
   tiempo_espera DateTime? @db.Time(0)
+
+  @@id([turno_id, agente_id, servicio_id])
 }
 
 model Servicios_sucursales {
-  id                  Int        @id @default(autoincrement())
   servicio            Servicios  @relation(fields: [servicio_id], references: [id])
   servicio_id         Int
   sucursal            Sucursales @relation(fields: [sucursal_id], references: [id])
   sucursal_id         Int
-  disponible          Boolean    @default(true)
+  disponible          Boolean?   @default(true)
   razon_no_disponible String     @db.VarChar(40)
-  estatus             Boolean    @default(true)
+  estatus             Boolean?   @default(true)
+
+  @@id([servicio_id, sucursal_id])
 }
 
 model Opciones_flujo {
   id             Int    @id @default(autoincrement())
   nombre_boton   String @db.VarChar(10)
-  funcion_accion String @db.VarChar(25)
+  funcion_accion String @db.VarChar(50)
   color_hex      String @db.VarChar(7)
 
   opciones_menu                    Opciones_menu[]
-  agentes_departamentos_sucursales Agentes_departamentos_sucursales[]
   pantallas                        Pantallas[]
 }
 
@@ -134,36 +136,37 @@ model Opciones_menu {
   opciones_id              Int
   opcion_menu_servicios    Opciones_menu_servicios @relation(fields: [opcion_menu_servicios_id], references: [id])
   opcion_menu_servicios_id Int
-  es_principal             Boolean                 @default(true)
+  es_principal             Boolean?                @default(true)
   orden                    Int
 }
 
 model Opciones_menu_servicios {
-  id                Int              @id @default(autoincrement())
+  id                Int              @unique @default(autoincrement())
   estado_turno      Estados_turnos   @relation(fields: [estado_turno_id], references: [id])
   estado_turno_id   Int
   grupo_servicio    Grupos_servicios @relation(fields: [grupo_servicio_id], references: [id])
   grupo_servicio_id Int
 
   opciones_menu Opciones_menu[]
+  @@id([estado_turno_id, grupo_servicio_id])
 }
 
 model Clientes {
   id                     Int                    @id @default(autoincrement())
-  nombre                 String                 @db.VarChar(20)
-  apellidos              String                 @db.VarChar(30)
+  nombre                 String?                @db.VarChar(20) @default("sin definir")
+  apellidos              String?                @db.VarChar(30) @default("sin definir")
   tipo_identificacion    Tipos_identificaciones @relation(fields: [tipo_identificacion_id], references: [id])
   tipo_identificacion_id Int
-  identificacion         String                 @db.VarChar(20)
-  seguro                 Seguros                @relation(fields: [seguro_id], references: [id])
-  seguro_id              Int
-  nombre_tutorado        String                 @db.VarChar(40)
+  identificacion         String                 @unique @db.VarChar(20)
+  seguro                 Seguros?               @relation(fields: [seguro_id], references: [id])
+  seguro_id              Int?                   @default(0)
+  nombre_tutorado        String?                @db.VarChar(40) 
   fecha_ultima_visita    DateTime?              @db.Date()
-  estatus                Boolean                @default(true)
+  estatus                Boolean?               @default(true)
   registrado_por         Usuarios               @relation(fields: [registrado_por_id], references: [id])
   registrado_por_id      Int
-  modificado_por_id      Int
-  createdAt              DateTime               @default(now())
+  modificado_por_id      Int?
+  createdAt              DateTime?              @default(now())
   updatedAt              DateTime               @updatedAt
 
   turnos             Turnos[]
@@ -176,7 +179,7 @@ model Seguros {
   nombre       String   @db.VarChar(60)
   nombre_corto String   @db.VarChar(10)
   siglas       String   @db.VarChar(3)
-  estatus      Boolean  @default(true)
+  estatus      Boolean? @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -202,35 +205,26 @@ model Agentes {
   grupo_servicio_id    Int
   tipo_agente    Tipos_agentes @relation(fields: [tipo_agente_id], references: [id])
   tipo_agente_id Int
+  departamento_sucursal   Departamentos_sucursales @relation(fields: [departamento_sucursal_id], references: [refId])
+  departamento_sucursal_id Int
   usuario        Usuarios      @relation(fields: [usuario_id], references: [id])
   usuario_id     Int           @unique
-  estatus        Boolean       @default(true)
+  estatus        Boolean?      @default(true)
   createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  updatedAt      DateTime?     @updatedAt
 
   atenciones_turno_servicio        Atenciones_turnos_servicios[]
-  agentes_departamentos_sucursales Agentes_departamentos_sucursales[]
 }
 
 model Tipos_agentes {
-  id           Int     @id @default(autoincrement())
-  nombre       String  @db.VarChar(10)
-  nombre_corto String  @db.VarChar(5)
-  descripcion  String  @db.VarChar(50)
-  estatus      Boolean @default(true)
+  id           Int      @id @default(autoincrement())
+  nombre       String   @db.VarChar(25)
+  nombre_corto String   @db.VarChar(5)
+  descripcion  String   @db.VarChar(50)
+  estatus      Boolean? @default(true)
 
   agentes Agentes[]
 }
-
-model Agentes_departamentos_sucursales {
-  id                       Int            @id @default(autoincrement())
-  agente                   Agentes        @relation(fields: [agente_id], references: [id])
-  agente_id                Int
-  departamento_sucursal    Opciones_flujo @relation(fields: [departamento_sucursal_id], references: [id])
-  departamento_sucursal_id Int
-  estatus                  Boolean        @default(true)
-}
-
 model Pantallas {
   id            Int               @id @default(autoincrement())
   nombre        String            @db.VarChar(20)
@@ -243,31 +237,31 @@ model Pantallas {
   direccion_ip  String            @db.VarChar(15)
   estatus       Boolean           @default(true)
   createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  updatedAt     DateTime?         @updatedAt
 
   colecciones_multimedia_pantallas Colecciones_multimedia_pantallas[]
 }
 
 model Estilos_pantallas {
-  id       Int              @id @default(autoincrement())
-  detalle  String           @db.VarChar(20)
-  siglas   String           @db.VarChar(5)
-  tv_brand Tipado_marcas_tv @default(DEFAULT)
-  filepath String           @db.VarChar(30)
-  estatus  Boolean          @default(true)
+  id       Int                @id @default(autoincrement())
+  detalle  String             @db.VarChar(40)
+  siglas   String             @db.VarChar(5)
+  tv_brand Tipado_marcas_tv?  @default(DEFAULT)
+  filepath String             @db.VarChar(30)
+  estatus  Boolean?           @default(true)
 
   pantallas Pantallas[]
 }
 
 model Sucursales {
   id           Int         @id @default(autoincrement())
-  descripcion  String      @db.VarChar(20)
-  siglas       String      @db.VarChar(5)
+  descripcion  String      @db.VarChar(30)
+  siglas       String      @db.VarChar(8)
   direccion    Direcciones @relation(fields: [direccion_id], references: [id])
   direccion_id Int         @unique
-  estatus      Boolean     @default(true)
+  estatus      Boolean?    @default(true)
   createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  updatedAt    DateTime?    @updatedAt
 
   turnos                   Turnos[]
   servicios_sucursales     Servicios_sucursales[]
@@ -278,7 +272,7 @@ model Sucursales {
 
 model Direcciones {
   id               Int      @id @default(autoincrement())
-  calle            String   @db.VarChar(20)
+  calle            String   @db.VarChar(50)
   numero           Int
   piso             Int
   sector           String   @db.VarChar(50)
@@ -286,7 +280,7 @@ model Direcciones {
   latitud_decimal  String   @db.VarChar(20)
   longitud_decimal String   @db.VarChar(20)
   createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  updatedAt        DateTime?@updatedAt
 
   sucursales         Sucursales[]
   contactos_clientes Contactos_clientes[]
@@ -294,46 +288,62 @@ model Direcciones {
 
 model Departamentos {
   id          Int      @id @default(autoincrement())
-  descripcion String   @db.VarChar(20)
+  descripcion String   @db.VarChar(30)
   siglas      String   @db.VarChar(5)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime?@updatedAt
 
   departamentos_sucursales  Departamentos_sucursales[]
   grabaciones_departamentos Grabaciones_departamentos[]
 }
 
 model Departamentos_sucursales {
-  id              Int           @id @default(autoincrement())
+  refId           Int           @db.Oid @unique @default(autoincrement())
   departamento    Departamentos @relation(fields: [departamento_id], references: [id])
   departamento_id Int
   sucursal        Sucursales    @relation(fields: [sucursal_id], references: [id])
   sucursal_id     Int
-  estatus         Boolean       @default(true)
+  estatus         Boolean?      @default(true)
+
+  servicios_departamentos_sucursales Servicios_departamentos_sucursales[]
+  agentes Agentes[]
+
+  @@id([departamento_id, sucursal_id])
+}
+model Servicios_departamentos_sucursales {
+  servicio                 Servicios                @relation(fields: [servicio_id], references: [id])
+  servicio_id              Int
+  departamento_sucursal    Departamentos_sucursales @relation(fields: [departamento_sucursal_id], references: [refId])
+  departamento_sucursal_id Int
+  estatus                  Boolean?                 @default(true)
+
+  @@id([servicio_id, departamento_sucursal_id])
 }
 
 model Horarios_sucursales {
-  id                       Int        @id @default(autoincrement())
   horario_dia_laborable    Horarios?  @relation(fields: [horario_dia_laborable_id], references: [id])
   horario_dia_laborable_id Int
   sucursal                 Sucursales @relation(fields: [sucursal_id], references: [id])
   sucursal_id              Int
-  estatus                  Boolean    @default(true)
+  estatus                  Boolean?   @default(true)
+
+  @@id([horario_dia_laborable_id, sucursal_id])
 }
 
 model Horarios_dias_laborables {
-  id               Int            @id @default(autoincrement())
   horario          Horarios       @relation(fields: [horario_id], references: [id])
   horario_id       Int
   dia_laborable    Dias_laborales @relation(fields: [dia_laborable_id], references: [id])
   dia_laborable_id Int
+
+  @@id([horario_id, dia_laborable_id])
 }
 
 model Dias_laborales {
   id           Int     @id @default(autoincrement())
   nombre       String  @db.VarChar(10)
   nombre_corto String  @db.VarChar(3)
-  estatus      Boolean @default(true)
+  estatus      Boolean?@default(true)
 
   horarios_dias_laborables Horarios_dias_laborables[]
 }
@@ -354,13 +364,14 @@ model Grabaciones {
   archivo           String            @db.VarChar(20)
   formato           String            @db.VarChar(5)
   detalle           String            @db.VarChar(50)
+  slug              String            @db.VarChar(200)
   tipo_grabacion    Tipos_grabaciones @relation(fields: [tipo_grabacion_id], references: [id])
   tipo_grabacion_id Int
   long              DateTime?         @db.Time()
   size_byte         Int
-  estatus           Boolean           @default(true)
+  estatus           Boolean?          @default(true)
   createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  updatedAt         DateTime?         @updatedAt
 
   grabaciones_servicios     Grabaciones_servicios[]
   grabaciones_departamentos Grabaciones_departamentos[]
@@ -375,21 +386,23 @@ model Tipos_grabaciones {
 }
 
 model Grabaciones_servicios {
-  id           Int         @id @default(autoincrement())
   servicio     Servicios   @relation(fields: [servicio_id], references: [id])
   servicio_id  Int
   grabacion    Grabaciones @relation(fields: [grabacion_id], references: [id])
   grabacion_id Int
   orden        Int
+
+  @@id([servicio_id, grabacion_id])
 }
 
 model Grabaciones_departamentos {
-  id              Int           @id @default(autoincrement())
   departamento    Departamentos @relation(fields: [departamento_id], references: [id])
   departamento_id Int
   grabacion       Grabaciones   @relation(fields: [grabacion_id], references: [id])
   grabacion_id    Int
   orden           Int
+
+  @@id([departamento_id, grabacion_id])
 }
 
 model Recursos_multimedia {
@@ -399,15 +412,16 @@ model Recursos_multimedia {
   tipo_id                 Int
   formato                 String                 @db.VarChar(5)
   detalle                 String                 @db.VarChar(50)
+  slug                    String                 @db.VarChar(200)
   coleccion_multimedia    Colecciones_multimedia @relation(fields: [coleccion_multimedia_id], references: [id])
   coleccion_multimedia_id Int
   long                    DateTime?              @db.Time()
   size                    Int
-  estatus                 Boolean                @default(true)
+  estatus                 Boolean?               @default(true)
   subido_por              Usuarios               @relation(fields: [subido_por_id], references: [id])
   subido_por_id           Int
   createdAt               DateTime               @default(now())
-  updatedAt               DateTime               @updatedAt
+  updatedAt               DateTime?              @updatedAt
 }
 
 model Tipos_multimedia {
@@ -430,23 +444,24 @@ model Colecciones_multimedia {
 }
 
 model Colecciones_multimedia_pantallas {
-  id                      Int                    @id @default(autoincrement())
   coleccion_multimedia    Colecciones_multimedia @relation(fields: [coleccion_multimedia_id], references: [id])
   coleccion_multimedia_id Int
   pantalla                Pantallas              @relation(fields: [pantalla_id], references: [id])
   pantalla_id             Int
   descripcion             String                 @db.VarChar(50)
   orden                   Int
-  estatus                 Boolean                @default(true)
+  estatus                 Boolean?               @default(true)
+
+  @@id([coleccion_multimedia_id, pantalla_id])
 }
 
 model Protocolos {
   id                Int              @id @default(autoincrement())
-  nombre            String           @db.VarChar(10)
-  descripcion       String           @db.VarChar(30)
+  nombre            String           @db.VarChar(30)
+  descripcion       String           @db.VarChar(50)
   tipo_protocolo    Tipos_protocolos @relation(fields: [tipo_protocolo_id], references: [id])
   tipo_protocolo_id Int
-  estatus           Boolean          @default(true)
+  estatus           Boolean?         @default(true)
 
   servicios_seguros      Servicios_seguros[]
   servicios_dependientes Servicios_dependientes[]
@@ -454,17 +469,14 @@ model Protocolos {
 
 model Tipos_protocolos {
   id                         Int               @id @default(autoincrement())
-  tipo                       Tipado_protocolos @default(DEFAULT)
-  descripcion                String            @db.VarChar(20)
-  servicios_seleccionable    Servicios         @relation(fields: [servicios_seleccionable_id], references: [id])
-  servicios_seleccionable_id Int
-  estatus                    Boolean           @default(true)
+  tipo                       Tipado_protocolos @default(SERVICIO)
+  descripcion                String            @db.VarChar(50)
+  estatus                    Boolean?          @default(true)
 
   protocolos Protocolos[]
 }
 
 model Servicios_seguros {
-  id           Int        @id @default(autoincrement())
   servicio     Servicios  @relation(fields: [servicio_id], references: [id])
   servicio_id  Int
   seguro       Seguros    @relation(fields: [seguro_id], references: [id])
@@ -473,7 +485,9 @@ model Servicios_seguros {
   protocolo_id Int
   cobertura    String     @db.VarChar(10)
   prioridad    Int
-  estatus      Boolean    @default(true)
+  estatus      Boolean?    @default(true)
+
+  @@id([servicio_id, seguro_id, protocolo_id])
 }
 
 model Servicios_dependientes {
@@ -485,7 +499,7 @@ model Servicios_dependientes {
   protocolo_id              Int
   razon_por_realizar        String     @db.VarChar(10)
   prioridad                 Int
-  estatus                   Boolean    @default(true)
+  estatus                   Boolean?   @default(true)
 }
 
 model Usuarios {
@@ -493,13 +507,13 @@ model Usuarios {
   nombres   String   @db.VarChar(50) @unique
   correo    String   @db.VarChar(60) @unique
   username  String   @db.VarChar(15) @unique
-  password  String   @db.VarChar(255)
+  password  String   @db.Text
   rol       Roles    @relation(fields: [rol_id], references: [id])
   rol_id    Int
   activo    Boolean  @default(true)
-  token     String   @db.VarChar(255)
+  token     String   @db.Text
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime?@updatedAt
 
   turnos                 Turnos[]
   clientes               Clientes[]
@@ -511,9 +525,9 @@ model Usuarios {
 
 model Roles {
   id          Int     @id @default(autoincrement())
-  nombre      String  @db.VarChar(20) @unique
+  nombre      String  @db.VarChar(30) @unique
   descripcion String  @db.VarChar(50)
-  activo      Boolean @default(true)
+  activo      Boolean?@default(true)
 
   usuarios       Usuarios[]
   roles_permisos Roles_permisos[]
@@ -528,7 +542,6 @@ model Permisos {
 }
 
 model Roles_permisos {
-  id         Int      @id @default(autoincrement())
   rol        Roles    @relation(fields: [rol_id], references: [id])
   rol_id     Int
   permiso    Permisos @relation(fields: [permiso_id], references: [id])
@@ -537,6 +550,8 @@ model Roles_permisos {
   read       Boolean  @default(false)
   update     Boolean  @default(false)
   delete     Boolean  @default(false)
+
+  @@id([rol_id, permiso_id])
 }
 
 model Configuraciones {
@@ -547,7 +562,7 @@ model Configuraciones {
   valor_default     String   @db.VarChar(100)
   modificado_por    Usuarios @relation(fields: [modificado_por_id], references: [id])
   modificado_por_id Int
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime? @updatedAt
 }
 
 model Registros_desactivados {
@@ -567,14 +582,14 @@ model Visitas_agendadas {
   descripcion            String        @db.VarChar(50)
   tipo_visita            Tipos_visitas @relation(fields: [tipo_visita_id], references: [id])
   tipo_visita_id         Int
-  fecha_hora_planificada DateTime      @default(now())
+  fecha_hora_planificada DateTime?     @default(now())
   sucursal               Sucursales    @relation(fields: [sucursal_id], references: [id])
   sucursal_id            Int
   comentario             String        @db.VarChar(255)
   estatus                Boolean       @default(true)
   registrado_por         Int
   createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
+  updatedAt              DateTime?     @updatedAt
 }
 
 model Tipos_visitas {
@@ -612,7 +627,7 @@ model Contactos_clientes {
   id               Int           @id @default(autoincrement())
   cliente          Clientes      @relation(fields: [cliente_id], references: [id])
   cliente_id       Int
-  fecha_nacimiento DateTime      @default(now())
+  fecha_nacimiento DateTime?     @db.Date
   telefono         String        @db.VarChar(10)
   celular          String        @db.VarChar(15)
   referido         Referimientos @relation(fields: [referido_id], references: [id])

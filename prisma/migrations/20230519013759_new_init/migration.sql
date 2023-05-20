@@ -8,37 +8,6 @@ CREATE TYPE "Tipado_estados_turnos" AS ENUM ('NUEVA_SESION', 'ESPERANDO', 'ATEND
 CREATE TYPE "Tipado_marcas_tv" AS ENUM ('ROKU_TV', 'SAMSUNG_TV', 'DEFAULT');
 
 -- CreateTable
-CREATE TABLE "Post" (
-    "id" SERIAL NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "title" VARCHAR(255) NOT NULL,
-    "content" TEXT,
-    "published" BOOLEAN NOT NULL DEFAULT true,
-    "authorId" INTEGER NOT NULL,
-
-    CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Profile" (
-    "id" SERIAL NOT NULL,
-    "bio" TEXT,
-    "userId" INTEGER NOT NULL,
-
-    CONSTRAINT "Profile_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "User" (
-    "id" SERIAL NOT NULL,
-    "email" TEXT NOT NULL,
-    "name" TEXT,
-
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "Turnos" (
     "id" SERIAL NOT NULL,
     "secuencia_ticket" VARCHAR(5) NOT NULL,
@@ -48,8 +17,9 @@ CREATE TABLE "Turnos" (
     "cola_posicion" INTEGER NOT NULL,
     "cliente_id" INTEGER NOT NULL,
     "sucursal_id" INTEGER NOT NULL,
+    "fecha_turno" DATE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "registrado_por_id" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Turnos_pkey" PRIMARY KEY ("id")
 );
@@ -67,12 +37,12 @@ CREATE TABLE "Estados_turnos" (
 -- CreateTable
 CREATE TABLE "Servicios" (
     "id" SERIAL NOT NULL,
-    "descripcion" VARCHAR(35) NOT NULL,
+    "descripcion" VARCHAR(50) NOT NULL,
     "nombre_corto" VARCHAR(20) NOT NULL,
     "prefijo" VARCHAR(3) NOT NULL,
     "grupo_id" INTEGER NOT NULL,
-    "es_seleccionable" BOOLEAN NOT NULL DEFAULT true,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "es_seleccionable" BOOLEAN DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
     CONSTRAINT "Servicios_pkey" PRIMARY KEY ("id")
 );
@@ -88,7 +58,6 @@ CREATE TABLE "Grupos_servicios" (
 
 -- CreateTable
 CREATE TABLE "Atenciones_turnos_servicios" (
-    "id" SERIAL NOT NULL,
     "turno_id" INTEGER NOT NULL,
     "agente_id" INTEGER NOT NULL,
     "servicio_id" INTEGER NOT NULL,
@@ -96,26 +65,25 @@ CREATE TABLE "Atenciones_turnos_servicios" (
     "hora_fin" TIME(0),
     "tiempo_espera" TIME(0),
 
-    CONSTRAINT "Atenciones_turnos_servicios_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Atenciones_turnos_servicios_pkey" PRIMARY KEY ("turno_id","agente_id","servicio_id")
 );
 
 -- CreateTable
 CREATE TABLE "Servicios_sucursales" (
-    "id" SERIAL NOT NULL,
     "servicio_id" INTEGER NOT NULL,
     "sucursal_id" INTEGER NOT NULL,
-    "disponible" BOOLEAN NOT NULL DEFAULT true,
+    "disponible" BOOLEAN DEFAULT true,
     "razon_no_disponible" VARCHAR(40) NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
-    CONSTRAINT "Servicios_sucursales_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Servicios_sucursales_pkey" PRIMARY KEY ("servicio_id","sucursal_id")
 );
 
 -- CreateTable
 CREATE TABLE "Opciones_flujo" (
     "id" SERIAL NOT NULL,
     "nombre_boton" VARCHAR(10) NOT NULL,
-    "funcion_accion" VARCHAR(25) NOT NULL,
+    "funcion_accion" VARCHAR(50) NOT NULL,
     "color_hex" VARCHAR(7) NOT NULL,
 
     CONSTRAINT "Opciones_flujo_pkey" PRIMARY KEY ("id")
@@ -126,7 +94,7 @@ CREATE TABLE "Opciones_menu" (
     "id" SERIAL NOT NULL,
     "opciones_id" INTEGER NOT NULL,
     "opcion_menu_servicios_id" INTEGER NOT NULL,
-    "es_principal" BOOLEAN NOT NULL DEFAULT true,
+    "es_principal" BOOLEAN DEFAULT true,
     "orden" INTEGER NOT NULL,
 
     CONSTRAINT "Opciones_menu_pkey" PRIMARY KEY ("id")
@@ -138,23 +106,23 @@ CREATE TABLE "Opciones_menu_servicios" (
     "estado_turno_id" INTEGER NOT NULL,
     "grupo_servicio_id" INTEGER NOT NULL,
 
-    CONSTRAINT "Opciones_menu_servicios_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Opciones_menu_servicios_pkey" PRIMARY KEY ("estado_turno_id","grupo_servicio_id")
 );
 
 -- CreateTable
 CREATE TABLE "Clientes" (
     "id" SERIAL NOT NULL,
-    "nombre" VARCHAR(20) NOT NULL,
-    "apellidos" VARCHAR(30) NOT NULL,
+    "nombre" VARCHAR(20) DEFAULT 'sin definir',
+    "apellidos" VARCHAR(30) DEFAULT 'sin definir',
     "tipo_identificacion_id" INTEGER NOT NULL,
     "identificacion" VARCHAR(20) NOT NULL,
-    "seguro_id" INTEGER NOT NULL,
-    "nombre_tutorado" VARCHAR(40) NOT NULL,
+    "seguro_id" INTEGER DEFAULT 0,
+    "nombre_tutorado" VARCHAR(40),
     "fecha_ultima_visita" DATE,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
     "registrado_por_id" INTEGER NOT NULL,
-    "modificado_por_id" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "modificado_por_id" INTEGER,
+    "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Clientes_pkey" PRIMARY KEY ("id")
@@ -166,7 +134,7 @@ CREATE TABLE "Seguros" (
     "nombre" VARCHAR(60) NOT NULL,
     "nombre_corto" VARCHAR(10) NOT NULL,
     "siglas" VARCHAR(3) NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -189,12 +157,13 @@ CREATE TABLE "Agentes" (
     "id" SERIAL NOT NULL,
     "nombre" VARCHAR(30) NOT NULL,
     "descripcion" VARCHAR(50) NOT NULL,
-    "servicio_id" INTEGER NOT NULL,
+    "grupo_servicio_id" INTEGER NOT NULL,
     "tipo_agente_id" INTEGER NOT NULL,
+    "departamento_sucursal_id" INTEGER NOT NULL,
     "usuario_id" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Agentes_pkey" PRIMARY KEY ("id")
 );
@@ -202,22 +171,12 @@ CREATE TABLE "Agentes" (
 -- CreateTable
 CREATE TABLE "Tipos_agentes" (
     "id" SERIAL NOT NULL,
-    "nombre" VARCHAR(10) NOT NULL,
+    "nombre" VARCHAR(25) NOT NULL,
     "nombre_corto" VARCHAR(5) NOT NULL,
     "descripcion" VARCHAR(50) NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
     CONSTRAINT "Tipos_agentes_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Agentes_departamentos_sucursales" (
-    "id" SERIAL NOT NULL,
-    "agente_id" INTEGER NOT NULL,
-    "departamento_sucursal_id" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
-
-    CONSTRAINT "Agentes_departamentos_sucursales_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -231,7 +190,7 @@ CREATE TABLE "Pantallas" (
     "direccion_ip" VARCHAR(15) NOT NULL,
     "estatus" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Pantallas_pkey" PRIMARY KEY ("id")
 );
@@ -241,9 +200,9 @@ CREATE TABLE "Estilos_pantallas" (
     "id" SERIAL NOT NULL,
     "detalle" VARCHAR(20) NOT NULL,
     "siglas" VARCHAR(5) NOT NULL,
-    "tv_brand" "Tipado_marcas_tv" NOT NULL DEFAULT 'DEFAULT',
+    "tv_brand" "Tipado_marcas_tv" DEFAULT 'DEFAULT',
     "filepath" VARCHAR(30) NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
     CONSTRAINT "Estilos_pantallas_pkey" PRIMARY KEY ("id")
 );
@@ -254,9 +213,9 @@ CREATE TABLE "Sucursales" (
     "descripcion" VARCHAR(20) NOT NULL,
     "siglas" VARCHAR(5) NOT NULL,
     "direccion_id" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Sucursales_pkey" PRIMARY KEY ("id")
 );
@@ -264,7 +223,7 @@ CREATE TABLE "Sucursales" (
 -- CreateTable
 CREATE TABLE "Direcciones" (
     "id" SERIAL NOT NULL,
-    "calle" VARCHAR(20) NOT NULL,
+    "calle" VARCHAR(50) NOT NULL,
     "numero" INTEGER NOT NULL,
     "piso" INTEGER NOT NULL,
     "sector" VARCHAR(50) NOT NULL,
@@ -272,7 +231,7 @@ CREATE TABLE "Direcciones" (
     "latitud_decimal" VARCHAR(20) NOT NULL,
     "longitud_decimal" VARCHAR(20) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Direcciones_pkey" PRIMARY KEY ("id")
 );
@@ -283,38 +242,45 @@ CREATE TABLE "Departamentos" (
     "descripcion" VARCHAR(20) NOT NULL,
     "siglas" VARCHAR(5) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Departamentos_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Departamentos_sucursales" (
-    "id" SERIAL NOT NULL,
+    "refId" OID NOT NULL,
     "departamento_id" INTEGER NOT NULL,
     "sucursal_id" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
-    CONSTRAINT "Departamentos_sucursales_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Departamentos_sucursales_pkey" PRIMARY KEY ("departamento_id","sucursal_id")
+);
+
+-- CreateTable
+CREATE TABLE "Servicios_departamentos_sucursales" (
+    "servicio_id" INTEGER NOT NULL,
+    "departamento_sucursal_id" INTEGER NOT NULL,
+    "estatus" BOOLEAN DEFAULT true,
+
+    CONSTRAINT "Servicios_departamentos_sucursales_pkey" PRIMARY KEY ("servicio_id","departamento_sucursal_id")
 );
 
 -- CreateTable
 CREATE TABLE "Horarios_sucursales" (
-    "id" SERIAL NOT NULL,
     "horario_dia_laborable_id" INTEGER NOT NULL,
     "sucursal_id" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
-    CONSTRAINT "Horarios_sucursales_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Horarios_sucursales_pkey" PRIMARY KEY ("horario_dia_laborable_id","sucursal_id")
 );
 
 -- CreateTable
 CREATE TABLE "Horarios_dias_laborables" (
-    "id" SERIAL NOT NULL,
     "horario_id" INTEGER NOT NULL,
     "dia_laborable_id" INTEGER NOT NULL,
 
-    CONSTRAINT "Horarios_dias_laborables_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Horarios_dias_laborables_pkey" PRIMARY KEY ("horario_id","dia_laborable_id")
 );
 
 -- CreateTable
@@ -322,7 +288,7 @@ CREATE TABLE "Dias_laborales" (
     "id" SERIAL NOT NULL,
     "nombre" VARCHAR(10) NOT NULL,
     "nombre_corto" VARCHAR(3) NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
     CONSTRAINT "Dias_laborales_pkey" PRIMARY KEY ("id")
 );
@@ -347,9 +313,9 @@ CREATE TABLE "Grabaciones" (
     "tipo_grabacion_id" INTEGER NOT NULL,
     "long" TIME,
     "size_byte" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Grabaciones_pkey" PRIMARY KEY ("id")
 );
@@ -365,22 +331,20 @@ CREATE TABLE "Tipos_grabaciones" (
 
 -- CreateTable
 CREATE TABLE "Grabaciones_servicios" (
-    "id" SERIAL NOT NULL,
     "servicio_id" INTEGER NOT NULL,
     "grabacion_id" INTEGER NOT NULL,
     "orden" INTEGER NOT NULL,
 
-    CONSTRAINT "Grabaciones_servicios_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Grabaciones_servicios_pkey" PRIMARY KEY ("servicio_id","grabacion_id")
 );
 
 -- CreateTable
 CREATE TABLE "Grabaciones_departamentos" (
-    "id" SERIAL NOT NULL,
     "departamento_id" INTEGER NOT NULL,
     "grabacion_id" INTEGER NOT NULL,
     "orden" INTEGER NOT NULL,
 
-    CONSTRAINT "Grabaciones_departamentos_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Grabaciones_departamentos_pkey" PRIMARY KEY ("departamento_id","grabacion_id")
 );
 
 -- CreateTable
@@ -393,10 +357,10 @@ CREATE TABLE "Recursos_multimedia" (
     "coleccion_multimedia_id" INTEGER NOT NULL,
     "long" TIME,
     "size" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
     "subido_por_id" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Recursos_multimedia_pkey" PRIMARY KEY ("id")
 );
@@ -423,23 +387,22 @@ CREATE TABLE "Colecciones_multimedia" (
 
 -- CreateTable
 CREATE TABLE "Colecciones_multimedia_pantallas" (
-    "id" SERIAL NOT NULL,
     "coleccion_multimedia_id" INTEGER NOT NULL,
     "pantalla_id" INTEGER NOT NULL,
     "descripcion" VARCHAR(50) NOT NULL,
     "orden" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
-    CONSTRAINT "Colecciones_multimedia_pantallas_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Colecciones_multimedia_pantallas_pkey" PRIMARY KEY ("coleccion_multimedia_id","pantalla_id")
 );
 
 -- CreateTable
 CREATE TABLE "Protocolos" (
     "id" SERIAL NOT NULL,
-    "nombre" VARCHAR(10) NOT NULL,
-    "descripcion" VARCHAR(30) NOT NULL,
+    "nombre" VARCHAR(20) NOT NULL,
+    "descripcion" VARCHAR(50) NOT NULL,
     "tipo_protocolo_id" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
     CONSTRAINT "Protocolos_pkey" PRIMARY KEY ("id")
 );
@@ -447,25 +410,23 @@ CREATE TABLE "Protocolos" (
 -- CreateTable
 CREATE TABLE "Tipos_protocolos" (
     "id" SERIAL NOT NULL,
-    "tipo" "Tipado_protocolos" NOT NULL DEFAULT 'DEFAULT',
-    "descripcion" VARCHAR(20) NOT NULL,
-    "servicios_seleccionable_id" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "tipo" "Tipado_protocolos" NOT NULL DEFAULT 'SERVICIO',
+    "descripcion" VARCHAR(50) NOT NULL,
+    "estatus" BOOLEAN DEFAULT true,
 
     CONSTRAINT "Tipos_protocolos_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Servicios_seguros" (
-    "id" SERIAL NOT NULL,
     "servicio_id" INTEGER NOT NULL,
     "seguro_id" INTEGER NOT NULL,
     "protocolo_id" INTEGER NOT NULL,
     "cobertura" VARCHAR(10) NOT NULL,
     "prioridad" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
-    CONSTRAINT "Servicios_seguros_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Servicios_seguros_pkey" PRIMARY KEY ("servicio_id","seguro_id","protocolo_id")
 );
 
 -- CreateTable
@@ -476,7 +437,7 @@ CREATE TABLE "Servicios_dependientes" (
     "protocolo_id" INTEGER NOT NULL,
     "razon_por_realizar" VARCHAR(10) NOT NULL,
     "prioridad" INTEGER NOT NULL,
-    "estatus" BOOLEAN NOT NULL DEFAULT true,
+    "estatus" BOOLEAN DEFAULT true,
 
     CONSTRAINT "Servicios_dependientes_pkey" PRIMARY KEY ("id")
 );
@@ -487,11 +448,12 @@ CREATE TABLE "Usuarios" (
     "nombres" VARCHAR(50) NOT NULL,
     "correo" VARCHAR(60) NOT NULL,
     "username" VARCHAR(15) NOT NULL,
-    "password" VARCHAR(255) NOT NULL,
+    "password" TEXT NOT NULL,
     "rol_id" INTEGER NOT NULL,
     "activo" BOOLEAN NOT NULL DEFAULT true,
+    "token" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Usuarios_pkey" PRIMARY KEY ("id")
 );
@@ -500,8 +462,8 @@ CREATE TABLE "Usuarios" (
 CREATE TABLE "Roles" (
     "id" SERIAL NOT NULL,
     "nombre" VARCHAR(20) NOT NULL,
-    "descripcion" VARCHAR(30) NOT NULL,
-    "activo" BOOLEAN NOT NULL DEFAULT true,
+    "descripcion" VARCHAR(50) NOT NULL,
+    "activo" BOOLEAN DEFAULT true,
 
     CONSTRAINT "Roles_pkey" PRIMARY KEY ("id")
 );
@@ -517,7 +479,6 @@ CREATE TABLE "Permisos" (
 
 -- CreateTable
 CREATE TABLE "Roles_permisos" (
-    "id" SERIAL NOT NULL,
     "rol_id" INTEGER NOT NULL,
     "permiso_id" INTEGER NOT NULL,
     "create" BOOLEAN NOT NULL DEFAULT false,
@@ -525,7 +486,7 @@ CREATE TABLE "Roles_permisos" (
     "update" BOOLEAN NOT NULL DEFAULT false,
     "delete" BOOLEAN NOT NULL DEFAULT false,
 
-    CONSTRAINT "Roles_permisos_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Roles_permisos_pkey" PRIMARY KEY ("rol_id","permiso_id")
 );
 
 -- CreateTable
@@ -536,7 +497,7 @@ CREATE TABLE "Configuraciones" (
     "detalle" VARCHAR(50) NOT NULL,
     "valor_default" VARCHAR(100) NOT NULL,
     "modificado_por_id" INTEGER NOT NULL,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Configuraciones_pkey" PRIMARY KEY ("id")
 );
@@ -559,13 +520,13 @@ CREATE TABLE "Visitas_agendadas" (
     "cliente_id" INTEGER NOT NULL,
     "descripcion" VARCHAR(50) NOT NULL,
     "tipo_visita_id" INTEGER NOT NULL,
-    "fecha_hora_planificada" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "fecha_hora_planificada" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
     "sucursal_id" INTEGER NOT NULL,
     "comentario" VARCHAR(255) NOT NULL,
     "estatus" BOOLEAN NOT NULL DEFAULT true,
     "registrado_por" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Visitas_agendadas_pkey" PRIMARY KEY ("id")
 );
@@ -607,7 +568,7 @@ CREATE TABLE "Tipos_referimientos" (
 CREATE TABLE "Contactos_clientes" (
     "id" SERIAL NOT NULL,
     "cliente_id" INTEGER NOT NULL,
-    "fecha_nacimiento" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "fecha_nacimiento" DATE,
     "telefono" VARCHAR(10) NOT NULL,
     "celular" VARCHAR(15) NOT NULL,
     "referido_id" INTEGER NOT NULL,
@@ -617,10 +578,10 @@ CREATE TABLE "Contactos_clientes" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Profile_userId_key" ON "Profile"("userId");
+CREATE UNIQUE INDEX "Opciones_menu_servicios_id_key" ON "Opciones_menu_servicios"("id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX "Clientes_identificacion_key" ON "Clientes"("identificacion");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Agentes_usuario_id_key" ON "Agentes"("usuario_id");
@@ -628,14 +589,23 @@ CREATE UNIQUE INDEX "Agentes_usuario_id_key" ON "Agentes"("usuario_id");
 -- CreateIndex
 CREATE UNIQUE INDEX "Sucursales_direccion_id_key" ON "Sucursales"("direccion_id");
 
--- AddForeignKey
-ALTER TABLE "Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+-- CreateIndex
+CREATE UNIQUE INDEX "Departamentos_sucursales_refId_key" ON "Departamentos_sucursales"("refId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Usuarios_nombres_key" ON "Usuarios"("nombres");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Usuarios_correo_key" ON "Usuarios"("correo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Usuarios_username_key" ON "Usuarios"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Roles_nombre_key" ON "Roles"("nombre");
 
 -- AddForeignKey
-ALTER TABLE "Profile" ADD CONSTRAINT "Profile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Turnos" ADD CONSTRAINT "Turnos_servicio_actual_id_fkey" FOREIGN KEY ("servicio_actual_id") REFERENCES "Servicios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Turnos" ADD CONSTRAINT "Turnos_servicio_destino_id_fkey" FOREIGN KEY ("servicio_destino_id") REFERENCES "Servicios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Turnos" ADD CONSTRAINT "Turnos_estado_turno_id_fkey" FOREIGN KEY ("estado_turno_id") REFERENCES "Estados_turnos"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -683,25 +653,22 @@ ALTER TABLE "Opciones_menu_servicios" ADD CONSTRAINT "Opciones_menu_servicios_gr
 ALTER TABLE "Clientes" ADD CONSTRAINT "Clientes_tipo_identificacion_id_fkey" FOREIGN KEY ("tipo_identificacion_id") REFERENCES "Tipos_identificaciones"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Clientes" ADD CONSTRAINT "Clientes_seguro_id_fkey" FOREIGN KEY ("seguro_id") REFERENCES "Seguros"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Clientes" ADD CONSTRAINT "Clientes_seguro_id_fkey" FOREIGN KEY ("seguro_id") REFERENCES "Seguros"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Clientes" ADD CONSTRAINT "Clientes_registrado_por_id_fkey" FOREIGN KEY ("registrado_por_id") REFERENCES "Usuarios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Agentes" ADD CONSTRAINT "Agentes_servicio_id_fkey" FOREIGN KEY ("servicio_id") REFERENCES "Servicios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Agentes" ADD CONSTRAINT "Agentes_grupo_servicio_id_fkey" FOREIGN KEY ("grupo_servicio_id") REFERENCES "Grupos_servicios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Agentes" ADD CONSTRAINT "Agentes_tipo_agente_id_fkey" FOREIGN KEY ("tipo_agente_id") REFERENCES "Tipos_agentes"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Agentes" ADD CONSTRAINT "Agentes_departamento_sucursal_id_fkey" FOREIGN KEY ("departamento_sucursal_id") REFERENCES "Departamentos_sucursales"("refId") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Agentes" ADD CONSTRAINT "Agentes_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "Usuarios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Agentes_departamentos_sucursales" ADD CONSTRAINT "Agentes_departamentos_sucursales_agente_id_fkey" FOREIGN KEY ("agente_id") REFERENCES "Agentes"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Agentes_departamentos_sucursales" ADD CONSTRAINT "Agentes_departamentos_sucursales_departamento_sucursal_id_fkey" FOREIGN KEY ("departamento_sucursal_id") REFERENCES "Opciones_flujo"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Pantallas" ADD CONSTRAINT "Pantallas_estilo_id_fkey" FOREIGN KEY ("estilo_id") REFERENCES "Estilos_pantallas"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -717,6 +684,12 @@ ALTER TABLE "Departamentos_sucursales" ADD CONSTRAINT "Departamentos_sucursales_
 
 -- AddForeignKey
 ALTER TABLE "Departamentos_sucursales" ADD CONSTRAINT "Departamentos_sucursales_sucursal_id_fkey" FOREIGN KEY ("sucursal_id") REFERENCES "Sucursales"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Servicios_departamentos_sucursales" ADD CONSTRAINT "Servicios_departamentos_sucursales_servicio_id_fkey" FOREIGN KEY ("servicio_id") REFERENCES "Servicios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Servicios_departamentos_sucursales" ADD CONSTRAINT "Servicios_departamentos_sucursales_departamento_sucursal_i_fkey" FOREIGN KEY ("departamento_sucursal_id") REFERENCES "Departamentos_sucursales"("refId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Horarios_sucursales" ADD CONSTRAINT "Horarios_sucursales_horario_dia_laborable_id_fkey" FOREIGN KEY ("horario_dia_laborable_id") REFERENCES "Horarios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -762,9 +735,6 @@ ALTER TABLE "Colecciones_multimedia_pantallas" ADD CONSTRAINT "Colecciones_multi
 
 -- AddForeignKey
 ALTER TABLE "Protocolos" ADD CONSTRAINT "Protocolos_tipo_protocolo_id_fkey" FOREIGN KEY ("tipo_protocolo_id") REFERENCES "Tipos_protocolos"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Tipos_protocolos" ADD CONSTRAINT "Tipos_protocolos_servicios_seleccionable_id_fkey" FOREIGN KEY ("servicios_seleccionable_id") REFERENCES "Servicios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Servicios_seguros" ADD CONSTRAINT "Servicios_seguros_servicio_id_fkey" FOREIGN KEY ("servicio_id") REFERENCES "Servicios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

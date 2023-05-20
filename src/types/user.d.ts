@@ -1,26 +1,7 @@
-export type UsuarioTypes = {
-    id: number,
-    nombres: string,
-    correo: string,
-    username: string,
-    password:  string,
-    rol?: Rol,
-    rol_id?: number,
-    activo: boolean,
-    token?: string,
-    createdAt?: Date,
-    updatedAt?: Date
-}
+import { Usuarios } from "@prisma/client"
 
-export type storeUsuarioTypes = Omit<UsuarioTypes,
+export type storeUsuarioTypes = Omit<Usuarios,
  'id'|'token'|'createdAt'|'updatedAt'>
 
-export type updateUsuarioTypes = Omit<UsuarioTypes,
+export type updateUsuarioTypes = Omit<Usuarios,
 'id'|'password'|'token'|'createdAt'|'updatedAt'>
-
-export type Roles = {
-    id?: number,
-    nombre?: string,
-    descripcion?: string,
-    activo?: boolean
-}

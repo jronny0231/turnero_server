@@ -1,21 +1,28 @@
 import express from 'express';
-import { authenticateToken, refreshToken} from '../controllers/auth.controller';
-import { UpdatePassword, Login, Logout } from '../controllers/user.controller';
+import * as User from '../controllers/user.controller';
+import { authToken } from '../middlewares/activeToken.middlewares';
+import { verifyActiveUserToken } from '../middlewares/activeUser.middlewares';
+import { refreshToken } from '../services/jwt.helper';
 
 const router = express.Router()
 
-router.post('/login', Login);
+router.post('/login', User.Login);
 
-router.get('/refreshToken', authenticateToken, refreshToken);
+router.get('/refreshToken', authToken, verifyActiveUserToken, refreshToken);
 
-router.delete('/logout', authenticateToken, Logout);
+router.delete('/logout', authToken, verifyActiveUserToken, User.Logout);
 
-router.get('/user', authenticateToken, (_req, res) => {
-    const payload = res.locals.payload;
-    res.status(200).json({data: payload});
+router.get('/profile', authToken, verifyActiveUserToken, (_req, res) => {
+    const id = res.locals.payload.id;
+    User.GetUserByTokenId(id, res);
 });
 
-router.put('/passwordReset/:id', UpdatePassword);
-router.put('/passwordReset', authenticateToken, UpdatePassword);
+router.get('/agent', authToken, verifyActiveUserToken, (_req, res) => {
+    const id = res.locals.payload.id;
+    User.GetAgentByTokenId(id, res);
+});
+
+router.put('/passwordReset/:id', User.UpdatePassword);
+router.put('/passwordReset', authToken, verifyActiveUserToken, User.UpdatePassword);
 
 export default router;

@@ -1,10 +1,9 @@
-import { PrismaClient } from '@prisma/client';
-import { UsuarioTypes, storeUsuarioTypes} from '../types/user.d';
+import { PrismaClient, Usuarios } from '@prisma/client';
 
 const prisma = new PrismaClient();
 const usuarios = prisma.usuarios;
 
-export const GetAll = async (): Promise<UsuarioTypes[]> => {
+export const GetAll = async (): Promise<Usuarios[]> => {
   const users = await usuarios.findMany({
     include: { rol: true }
   })
@@ -17,7 +16,7 @@ export const GetAll = async (): Promise<UsuarioTypes[]> => {
   
 }
 
-export const GetById = async (id: number): Promise<UsuarioTypes> => {
+export const GetById = async (id: number): Promise<Usuarios> => {
   const findUser = await usuarios.findFirstOrThrow({
     where: { id: id },
     include: { rol: true }
@@ -30,7 +29,7 @@ export const GetById = async (id: number): Promise<UsuarioTypes> => {
   return findUser;
 }
 
-export const GetBy = async (params: {}): Promise<UsuarioTypes>  => {
+export const GetBy = async (params: {}): Promise<Usuarios>  => {
   const filterUser = await usuarios.findFirstOrThrow({
     where: params,
     include: { rol: true }
@@ -43,7 +42,7 @@ export const GetBy = async (params: {}): Promise<UsuarioTypes>  => {
   return filterUser;
 }
 
-export const GetsBy = async (params: {}): Promise<UsuarioTypes[]>  => {
+export const GetsBy = async (params: {}): Promise<Usuarios[]>  => {
   const filterUsers = await usuarios.findMany({
     where: params,
     include: { rol: true }
@@ -56,9 +55,9 @@ export const GetsBy = async (params: {}): Promise<UsuarioTypes[]>  => {
   return filterUsers;
 }
 
-export const Store = async (data: storeUsuarioTypes): Promise<UsuarioTypes> => {
+export const Store = async (data: Usuarios): Promise<Usuarios> => {
 
-  const newUser: UsuarioTypes = await usuarios.create({
+  const newUser: Usuarios = await usuarios.create({
     data: {
       nombres: data.nombres,
       correo: data.correo,
@@ -80,7 +79,7 @@ export const Store = async (data: storeUsuarioTypes): Promise<UsuarioTypes> => {
   return newUser;
 }
 
-export const Update = async (id: number, data: {}): Promise<UsuarioTypes> => {
+export const Update = async (id: number, data: {}): Promise<Usuarios> => {
   
   const update = await usuarios.update({
     where: { id: id }, 
@@ -96,7 +95,7 @@ export const Update = async (id: number, data: {}): Promise<UsuarioTypes> => {
   return update;
 }
 
-export const Delete = async (id: number): Promise<UsuarioTypes> => {
+export const Delete = async (id: number): Promise<Usuarios> => {
 
   return await usuarios.delete({
     where: { id}
