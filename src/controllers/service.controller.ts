@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { GetAll, Store, GetsBy } from '../models/service.model';
+import * as ServicesModel from '../models/service.model';
 import { Servicios } from '@prisma/client';
 import { ObjectDifferences, ObjectFiltering } from '../utils/filtering';
 
@@ -16,34 +16,34 @@ const INPUT_TYPES_SERVICIOS: string[] = ['descripcion','nombre_corto','prefijo',
 const OUTPUT_TYPES_SERVICIOS: string[] = ['id','descripcion','nombre_corto','prefijo','grupo','es_seleccionable'];
 
 export const GetAllServices = ((_req: Request, res: Response) => {
-    GetAll().then((services => {
+    ServicesModel.GetAll().then((services => {
        
         const data = services.map((service) => {
             return <Servicios> ObjectFiltering(service, OUTPUT_TYPES_SERVICIOS);
         })
         
-        res.send({success: true, data});
+        return res.json({success: true, data});
 
     })).catch(async (error) => {
 
-        res.status(404).send({error: error.message});
+        return res.status(404).json({error: error.message});
         
     })
 })
 
-export const GetAllServicesByServiceGroup = ((req: Request <{ id: number}>, res: Response) => {
+export const GetAllServicesByServiceGroup = ((req: Request <{id: Number}>, res: Response) => {
     const grupo_id: number = Number(req.params.id);
-    GetsBy({grupo_id}).then((services => {
+    ServicesModel.GetsBy({grupo_id}).then((services => {
        
         const data = services.map((service) => {
             return <Servicios> ObjectFiltering(service, OUTPUT_TYPES_SERVICIOS);
         })
         
-        res.send({success: true, data});
+        return res.json({success: true, data});
 
     })).catch(async (error) => {
 
-        res.status(404).send({error: error.message});
+        return res.status(404).json({error: error.message});
         
     })
 })
@@ -55,25 +55,37 @@ export const GetAllServicesByServiceGroup = ((req: Request <{ id: number}>, res:
  * -- sucursal_id = sucursal actual
  * -- disponible = true
  */
-export const GetAllSeletableServicesByServiceGroup = ((req: Request <{ id: number}>, res: Response) => {
+export const GetAllSeletableServicesByServiceGroup = (async (req: Request <{id: Number}>, res: Response) => {
     const grupo_id: number = Number(req.params.id);
-    GetsBy({grupo_id, es_seleccionable: true}).then((services => {
+
+    if(grupo_id === 0) 
+        return ServicesModel.GetAllInGroups({es_seleccionable: true}).then((servicesInGroups) => {
+
+           return res.json({success: true, data: servicesInGroups})
+
+        }).catch(async (error) => {
+
+           return res.status(404).json({error: error.message});
+            
+        })
+
+    return ServicesModel.GetsBy({grupo_id, es_seleccionable: true}).then((services => {
        
         const data = services.map((service) => {
             return <Servicios> ObjectFiltering(service, OUTPUT_TYPES_SERVICIOS);
         })
         
-        res.send({success: true, data});
+       return res.json({success: true, data});
 
     })).catch(async (error) => {
 
-        res.status(404).send({error: error.message});
+       return res.status(404).json({error: error.message});
         
     })
 })
 
 export const GetServiceById = ((_req: Request, res: Response) => {
-    res.send('Get Servicios by ID');
+    res.json('Get Servicios by ID');
 })
 
 export const StoreNewService = ( async (req: Request, res: Response) => {
@@ -83,25 +95,25 @@ export const StoreNewService = ( async (req: Request, res: Response) => {
         return res.status(400).json({message: 'Incorrect or incomplete data in request', valid: INPUT_TYPES_SERVICIOS})
     }
     
-    Store(data).then((newService) => {
+    ServicesModel.Store(data).then((newService) => {
         const data = <Servicios> ObjectFiltering(newService, OUTPUT_TYPES_SERVICIOS);
 
-            return res.send({message: 'Service created successfully!', data});
+            return res.json({message: 'Service created successfully!', data});
     
     }).catch(async (error) => {
 
         if(error.code === 'P2000')
-            return res.status(400).send({error: 'A field is too longer.', message: error.message});
+            return res.status(400).json({error: 'A field is too longer.', message: error.message});
         
-        return res.status(400).send({error: error.message});
+        return res.status(400).json({error: error.message});
     })
     return
 })
 
 export const UpdateService = ((_req: Request, res: Response) => {
-    res.send('Update a Servicios');
+    return res.json('Update a Servicios');
 })
 
 export const DeleteService = ((_req: Request, res: Response) => {
-    res.send('Delete a Servicios');
+    return res.json('Delete a Servicios');
 })

@@ -42,7 +42,7 @@ export const GetBy = async (params: {}): Promise<Usuarios>  => {
   return filterUser;
 }
 
-export const GetsBy = async (params: {}): Promise<Usuarios[]>  => {
+export const GetsBy = async (params: Partial<Usuarios>): Promise<Usuarios[]>  => {
   const filterUsers = await usuarios.findMany({
     where: params,
     include: { rol: true }

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { GetAll, Store } from '../models/serviceGroup.model';
+import { GetAll, Store, GetsBy } from '../models/serviceGroup.model';
 import { Grupos_servicios } from '@prisma/client';
 import { ObjectDifferences, ObjectFiltering } from '../utils/filtering';
 
@@ -19,17 +19,27 @@ export const GetAllServicesGroup = ((_req: Request, res: Response) => {
             return <Grupos_servicios> ObjectFiltering(serviceGroup, OUTPUT_TYPES_GRUPOSERVICIOS);
         })
         
-        res.send({success: true, data});
+        return res.send({success: true, data});
 
     })).catch(async (error) => {
+        return res.status(404).send({error: error.message}); 
+    })
+})
 
-        res.status(404).send({error: error.message});
+export const GetAllSelectableServicesGroup = ((_req: Request, res: Response) => {
+    GetsBy({es_seleccionable: true}).then((serviceGroups) => {
+        const data = serviceGroups.map((serviceGroup) => {
+            return <Grupos_servicios> ObjectFiltering(serviceGroup, OUTPUT_TYPES_GRUPOSERVICIOS);
+        })
         
+        return res.send({success: true, data});
+    }).catch(async (error) => {
+        return res.status(404).send({error: error.message});
     })
 })
 
 export const GetServiceGroupById = ((_req: Request, res: Response) => {
-    res.send('Get Grupos Servicios by ID');
+    return res.send('Get Grupos Servicios by ID');
 })
 
 export const StoreNewServiceGroup = ( async (req: Request, res: Response) => {
@@ -55,9 +65,9 @@ export const StoreNewServiceGroup = ( async (req: Request, res: Response) => {
 })
 
 export const UpdateServiceGroup = ((_req: Request, res: Response) => {
-    res.send('Update a Grupo Servicios');
+    return res.send('Update a Grupo Servicios');
 })
 
 export const DeleteServiceGroup = ((_req: Request, res: Response) => {
-    res.send('Delete a Grupo Servicios');
+    return res.send('Delete a Grupo Servicios');
 })

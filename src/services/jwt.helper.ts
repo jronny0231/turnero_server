@@ -7,8 +7,16 @@ const TOKEN_SECRET = process.env.TOKEN_SECRET || PRIVATE_TOKEN_SECRET;
 
 
 export const createToken = ((payload: {}): string => {
+  const now: Date = new Date(Date.now());
+  const lastDate: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), (16 - now.getHours()) + now.getHours(), 59, 59);
+  const timeStart: number = now.getSeconds() * now.getMinutes() * now.getHours();
+  const timeEnd: number = lastDate.getSeconds() * lastDate.getMinutes() * lastDate.getHours();
+  const timeLeft: number = timeEnd - timeStart;
+
+  console.log({lastDate, timeStart, timeEnd, timeLeft})
+
   return jwt.sign({
-    exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour
+    exp: Math.floor(Date.now() / 1000) + timeLeft , // time until 23 hours
     data: payload
   }, TOKEN_SECRET);
 });

@@ -1,4 +1,4 @@
-import { PrismaClient, Servicios } from '@prisma/client';
+import { Grupos_servicios, PrismaClient, Servicios, Servicios_dependientes } from '@prisma/client';
 
 const prisma = new PrismaClient();
 const servicios = prisma.servicios;
@@ -15,6 +15,36 @@ export const GetAll = async (): Promise<Servicios[]> => {
     return services;
     
   }
+
+  export const GetAllInGroups = async (params: {}): Promise<Grupos_servicios[]> => {
+    const servicesInGroups = await prisma.grupos_servicios.findMany({
+      where: params,
+      include: { 
+        servicio: {
+          where: params,
+        }
+      }
+    })
+    .then((result) => result)
+    .finally(async () => {
+      await prisma.$disconnect()
+    })
+  
+    return servicesInGroups;
+    
+  }
+
+export const GetAllDependentsBySelectableId = async (id: number): Promise<Servicios_dependientes[]> => {
+  const dependents: Servicios_dependientes[] = await prisma.servicios_dependientes.findMany({
+    where: { servicio_seleccionable_id: id },
+    
+  }).then((result) => result)
+  .finally(async () => {
+    await prisma.$disconnect()
+  })
+
+  return dependents;
+}
   
   export const GetById = async (id: number): Promise<Servicios> => {
     const findService = await servicios.findFirstOrThrow({

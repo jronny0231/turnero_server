@@ -1,25 +1,78 @@
-import { PrismaClient, Turnos } from '@prisma/client';
+import { Departamentos, PrismaClient, Servicios, Turnos } from '@prisma/client';
 import { TurnoYCliente } from '../types/queue';
 
 const prisma = new PrismaClient();
 const turnos = prisma.turnos;
 
-export const GetAll = async (): Promise<Turnos[]> => {
-    const queues = await turnos.findMany({
-      
+const selectableFields = {
+  estado_turno: true,
+  cliente: {
+    select: {
+      id: true,
+      nombre: true,
+      identificacion: true,
+      seguro: {
+        select: {
+          nombre: true,
+        }
+      }
+    }
+  },
+  servicio_destino: {
+    select: {
+      id: true,
+      nombre_corto: true,
+      descripcion: true,
+    }
+  },
+  sucursal: {
+    select: {
+      id: true,
+      descripcion: true,
+      siglas: true
+    }
+  },
+  registrado_por: {
+    select: {
+      id: true,
+      username: true,
+    }
+  }
+}
+
+interface TurnoExport extends Turnos {
+  servicio_actual?: Partial<Servicios> | null;
+}
+
+export const GetAll = async (): Promise<TurnoExport[]> => {
+    const queues: TurnoExport[] = await turnos.findMany({
+      include: selectableFields,
     })
     .then((result) => result)
     .finally(async () => {
       await prisma.$disconnect()
     })
   
-    return queues;
+    const servicio_actual: Partial<Servicios> | null = await prisma.servicios.findFirst({
+      where: {
+        id: queues[0].servicio_actual_id
+      },
+      select: selectableFields.servicio_destino.select
+    })
+
+    const result: any = queues.map((queue: TurnoExport) => {
+      queue.servicio_actual = servicio_actual
+      return queue
+    })
+
+    return result as TurnoExport[];
     
   }
   
   export const GetById = async (id: number): Promise<Turnos> => {
     const findQueue = await turnos.findFirstOrThrow({
       where: { id: id },
+      include: selectableFields,
     })
     .then((result) => result)
     .finally(async () => {
@@ -32,6 +85,7 @@ export const GetAll = async (): Promise<Turnos[]> => {
   export const GetBy = async (params: {}): Promise<Turnos>  => {
     const filterQueue = await turnos.findFirstOrThrow({
       where: params,
+      include: selectableFields,
       
     })
     .then((result) => result)
@@ -41,23 +95,84 @@ export const GetAll = async (): Promise<Turnos[]> => {
   
     return filterQueue;
   }
-  
-  export const GetsBy = async (params: {}): Promise<Turnos[]>  => {
-    const filterQueues = await turnos.findMany({
-      where: params,
+
+  export const GetsBy = async (where: Partial<Turnos>, match?: {param: string, values: Array<string>}): Promise<Turnos[]>  => {
+    const matchParams = match ? {[match?.param as string]: {in: match?.values}} : {}
+    const filterQueues: PantallaTurnos[] = await turnos.findMany({
+      where: {
+        ...where,
+        ...matchParams
+      },
+      include: selectableFields,
       
     })
     .then((result) => result)
     .finally(async () => {
       await prisma.$disconnect()
     })
-    console.log({filterQueues})
+
     return filterQueues;
   }
+
+  interface PantallaTurnos extends Turnos {
+    departamento?: Partial<Departamentos> | null
+  }
   
+  export const GetsByWithDepartamento = async (where: Partial<Turnos>, match: {param: string, field: string, values: Array<string>}): Promise<PantallaTurnos[]>  => {
+    const filterQueues: PantallaTurnos[] = await turnos.findMany({
+      where: {
+        ...where,
+        
+        [match?.param as string]: {
+          [match?.field as string]: {in: match?.values}
+        }
+      },
+      include: selectableFields,
+      
+    })
+    .then((result) => result)
+    .finally(async () => {
+      await prisma.$disconnect()
+    })
+
+    const departamento = await prisma.servicios_departamentos_sucursales.findFirst({
+      where: {
+        servicio_id: filterQueues[0].servicio_actual_id,
+        departamento_sucursal: {
+          sucursal: {id: filterQueues[0].sucursal_id}
+        }
+      },
+      select: {
+        departamento_sucursal: {
+          select: {
+            departamento: {
+              select: {
+                id: true,
+                descripcion: true,
+                siglas: true
+              }
+            }
+          }
+          }
+        }
+    }).departamento_sucursal().departamento()
+
+    const result: any = filterQueues.map(queue => {
+      queue.departamento = departamento
+      return queue
+    }) as any[]
+
+    return result as PantallaTurnos[];
+  }
+
+  /*
+  export const syncQueuesToDisplay = async (sucursalId: number): Promise<Turnos[]> => {
+    const queues: Turnos[] = await prisma.$sub
+  }
+  */
   export const Store = async (data: Turnos): Promise<Turnos> => {
   
-    const newUser: Turnos = await turnos.create({
+    const newQueue: Turnos = await turnos.create({
       data
     })
     .then((result) => result)
@@ -65,7 +180,7 @@ export const GetAll = async (): Promise<Turnos[]> => {
       await prisma.$disconnect()
     })
   
-    return newUser;
+    return newQueue;
   }
 
   
@@ -100,7 +215,7 @@ export const GetAll = async (): Promise<Turnos[]> => {
     .finally(async () => {
       await prisma.$disconnect()
     })
-  
+    
     return newQueue;
   }
   

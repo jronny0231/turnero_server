@@ -7,8 +7,8 @@ import { Agentes, Usuarios } from '@prisma/client';
 import { createToken } from '../services/jwt.helper';
 
 
-const PASSWORD_SALT = 10;
-const DEFAULT_PASSWORD = "1234abcd";
+const PASSWORD_SALT = Number(process.env.PASSWORD_SALT) || 10;
+const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD || "1234abcd";
 
 const INPUT_TYPES_USUARIOS: string[] = ['nombres','correo','username','password','rol_id'];
 const OUTPUT_TYPES_USUARIOS: string[] = ['id','nombres','correo','username','rol','activo','createdAt','updateAt'];
@@ -212,12 +212,14 @@ export const Login = (async (req: Request, res: Response) => {
         const token = createToken({type:"super", id:0, username, correo:"super@user.com"});
         return res.json({token});
     }
+    
     await UserModel.GetBy({username})
-    .then(async (user: Usuarios) => {
+    
+    .then(async (user: Usuarios) => {       
         const isEqual: boolean = bcrypt.compareSync(password, user.password)
         if(isEqual) {
             const filterUser = ObjectFiltering(user, ['id', 'username','correo']);
-            const token = createToken({type:"user", ...filterUser});
+            const token = createToken({type:'user', ...filterUser});
             await UserModel.Update(user.id,{token})
             return res.json({token});
         }
@@ -225,7 +227,10 @@ export const Login = (async (req: Request, res: Response) => {
     })
     .catch((error) =>{
         console.error({error})
-        return res.status(400).json({message: 'username or password not match', errorcode: error.code});
+        if(error.code === 'P2025'){
+            return res.status(400).json({message: 'username or password not match'});
+        }
+        return res.status(500).json({message: 'error trying connect to database.', errorcode: error.code});
     })
 
     return

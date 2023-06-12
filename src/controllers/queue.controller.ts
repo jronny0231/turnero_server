@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
-import { Servicios, Turnos } from '@prisma/client';
+import { Servicios, Servicios_dependientes, Turnos } from '@prisma/client';
 import { ObjectDifferences, ObjectFiltering } from '../utils/filtering';
 
 import * as queueModel from '../models/queue.model';
-import * as serviceModel from '../models/service.model';
+import { GetAllDependentsBySelectableId as Dependents } from '../models/service.model'; 
 import { TurnoYCliente } from '../types/queue';
+import { exportPOSQueue } from '../services/ticket.export';
 
 /*
     id: number;
@@ -19,10 +20,10 @@ import { TurnoYCliente } from '../types/queue';
     createdAt: Date;
     */
 
-const INPUT_TYPES_TURNOS: string[] = ['tipo_identificacion_id','identificacion','es_tutor','servicio_destino_id'];
-const OUTPUT_TYPES_TURNOS: string[] = ['id','secuencia_ticket','servicio_destino','servicio_actual','cola_posicion','cliente','createdAt','updateAt'];
+const INPUT_TYPES_TURNOS: string[] = ['tipo_identificacion_id','identificacion','es_tutor','servicio_destino_id', 'servicio_destino', 'servicio_prefijo', 'sucursal_id', 'sucursal'];
+const OUTPUT_TYPES_TURNOS: string[] = ['id','secuencia_ticket','servicio_destino','servicio_actual','estado_turno','cola_posicion','cliente','createdAt','updateAt'];
 
-export const GetAllQueues = ((_req: Request, res: Response) => {
+export const GetAllQueues = (_req: Request, res: Response) => {
     queueModel.GetAll().then((queues => {
        
         const data = queues.map((queue) => {
@@ -36,18 +37,45 @@ export const GetAllQueues = ((_req: Request, res: Response) => {
         res.status(404).send({error: error.message});
         
     })
-})
+}
 
-export const GetQueueById = ((_req: Request, res: Response) => {
+export const GetQueueById = (_req: Request, res: Response) => {
     res.send('Get Turno by ID');
-})
+}
+
+/**
+ * Function to get a list of queues that are currently open for processing
+ * @param _req
+ * @param _res
+ * @returns {Promise<{}>}
+ */
+export const getActiveQueuesBySucursalId = async (req: Request, res: Response): Promise<{}> => {
+    const sucursal_id = Number(req.params.id)
+
+    const queues: Turnos[] = await queueModel.GetsByWithDepartamento(
+            {sucursal_id},
+            {param: 'estado_turno', field:'descripcion', values: ['ESPERANDO','ATENDIENDO','EN_ESPERA']}
+    );
+
+    if(queues.length === 0) {
+        return res.status(404).send({error: 'No se encontraron turnos activos'});
+    }
+
+    const data = queues.map((queue) => {
+        return <Turnos> ObjectFiltering( queue, [
+            'id', 'secuencia_ticket', 'servicio_destino', 'departamento', 'estado_turno'
+        ]);
+    })
+    
+    return res.send({success: true, data});
+}
 
 /**
  * Funcion principal que registra un nuevo turno en el sistema...
  * incluyendo los datos por defecto del cliente nuevo o enlazando si existe
  * procesando todos los datos por los parametros automaticos
  */
-export const StoreNewQueue = ( async (req: Request, res: Response) => {
+export const StoreNewQueue = async (req: Request, res: Response) => {
     const reqData: any = req.body;
 
     if(ObjectDifferences(reqData, INPUT_TYPES_TURNOS).length > 0){
@@ -65,29 +93,31 @@ export const StoreNewQueue = ( async (req: Request, res: Response) => {
     const userId: number = res.locals.payload.id;
     
     // Optiene la sucursal a la que pertenece el agente del usuario logueado
-    const officeId: number = 1;
+    const officeId: number = reqData.sucursal_id;
 
     // Obtiene el estado de turno predeterminado para el nuevo turno
     const queueStateId: number = 1;
 
-    // Obtiene el id del servicio siguiente con prioridad en la tabla 'servicios_dependientes' (casos generales: Registro)
-    const nextServiceId: number = 1;
-
-    // Obtiene el objeto Servicio segun el id de la request
-    const serviceRequest: Servicios = await serviceModel.GetById(reqData.servicio_destino_id);
+    // Obtiene el id del servicio siguiente con la prioridad mas alta en la tabla 'servicios_dependientes' (casos generales: Registro)
+    const nextService: Servicios_dependientes = (await Dependents(reqData.servicio_destino_id))[0]
+    const nextServiceId: number = nextService ? nextService.servicio_dependiente_id : 17 // 17 Servicio: Registro
     
-    // Obtiene la cantidad de turnos en la cola del servicio siguiente y le suma 1 para setear la cola
-    const lastQueuesInServiceToday: number = (await queueModel.GetsBy({servicio_destino_id:reqData.servicio_destino_id, sucursal_id: officeId, fecha_turno: nowDate })).length + 1
+    // Obtiene la cantidad de turnos sen la cola del servicio siguiente y le suma 1 para setear la cola
+    const queuesInServiceToday: Turnos[] = await queueModel.GetsBy({
+        servicio_destino_id: reqData.servicio_destino_id,
+        sucursal_id: officeId
+    })
+    const cola_posicion: number = queuesInServiceToday.length + 1;
     
     // Setea el codigo de Ticket para el nuevo turno
-    const queueSecuency: string = serviceRequest.prefijo + lastQueuesInServiceToday;
+    const queueSecuency: string = reqData.servicio_prefijo + ('0' + cola_posicion).slice(-2);
 
     const queueData: TurnoYCliente = {
         secuencia_ticket: queueSecuency,
         servicio_actual_id: nextServiceId,
         servicio_destino_id: Number(reqData.servicio_destino_id),
         estado_turno_id: queueStateId,
-        cola_posicion: lastQueuesInServiceToday,
+        cola_posicion,
         registrado_por_id: userId,
         sucursal_id: officeId,
         fecha_turno: nowDate,
@@ -102,7 +132,21 @@ export const StoreNewQueue = ( async (req: Request, res: Response) => {
         const newQueue: Turnos = await queueModel.StoreWithClient(queueData)
         const data = <Turnos> ObjectFiltering(newQueue, OUTPUT_TYPES_TURNOS);
         
-        return res.send({message: 'Queue created successfully!', data});
+        res.set('Content-Type', 'application/pdf');
+        res.set('Content-Disposition', 'attachment; filename=ticket.pdf');
+        
+        new Promise( async () => {
+            const pdf = await exportPOSQueue({
+                sucursal: reqData.sucursal,
+                secuencia_ticket: data.secuencia_ticket,
+                servicio_destino: reqData.servicio_destino,
+                createdAt: data.createdAt ?? nowTimestamp,
+            })
+            
+            return res.send(pdf);
+        })
+
+        return res.json({message: 'Queue created successfully!', data});
     
     } catch(error: any){
         if(error.code === 'P2000')
@@ -110,12 +154,12 @@ export const StoreNewQueue = ( async (req: Request, res: Response) => {
         
         return res.status(400).send({error: error.message});
     }
-})
+}
 
-export const UpdateQueue = ((_req: Request, res: Response) => {
+export const UpdateQueue = (_req: Request, res: Response) => {
     res.send('Update a Turno');
-})
+}
 
-export const DeleteQueue = ((_req: Request, res: Response) => {
+export const DeleteQueue = (_req: Request, res: Response) => {
     res.send('Delete a Turno');
-})
+}

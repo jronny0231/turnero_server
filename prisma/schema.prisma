@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -87,6 +84,7 @@ model Servicios {
 model Grupos_servicios {
   id          Int    @id @default(autoincrement())
   descripcion String @db.VarChar(25)
+  es_seleccionable Boolean? @default(true)
   color_hex   String @db.VarChar(7)
 
   servicio                Servicios[]
@@ -122,12 +120,11 @@ model Servicios_sucursales {
 
 model Opciones_flujo {
   id             Int    @id @default(autoincrement())
-  nombre_boton   String @db.VarChar(10)
+  nombre_boton   String @db.VarChar(20)
   funcion_accion String @db.VarChar(50)
   color_hex      String @db.VarChar(7)
 
   opciones_menu                    Opciones_menu[]
-  pantallas                        Pantallas[]
 }
 
 model Opciones_menu {
@@ -160,7 +157,7 @@ model Clientes {
   identificacion         String                 @unique @db.VarChar(20)
   seguro                 Seguros?               @relation(fields: [seguro_id], references: [id])
   seguro_id              Int?                   @default(0)
-  nombre_tutorado        String?                @db.VarChar(40) 
+  nombre_tutorado        String?                @db.VarChar(40)
   fecha_ultima_visita    DateTime?              @db.Date()
   estatus                Boolean?               @default(true)
   registrado_por         Usuarios               @relation(fields: [registrado_por_id], references: [id])
@@ -231,10 +228,9 @@ model Pantallas {
   detalle       String            @db.VarChar(50)
   estilo        Estilos_pantallas @relation(fields: [estilo_id], references: [id])
   estilo_id     Int
-  sucursal      Opciones_flujo    @relation(fields: [sucursal_id], references: [id])
+  sucursal      Sucursales        @relation(fields: [sucursal_id], references: [id])
   sucursal_id   Int
-  direccion_mac String            @db.VarChar(17)
-  direccion_ip  String            @db.VarChar(15)
+  key           String            @default(uuid())
   estatus       Boolean           @default(true)
   createdAt     DateTime          @default(now())
   updatedAt     DateTime?         @updatedAt
@@ -268,6 +264,7 @@ model Sucursales {
   departamentos_sucursales Departamentos_sucursales[]
   horarios_sucursales      Horarios_sucursales[]
   visitas_agendadas        Visitas_agendadas[]
+  pantallas                Pantallas[]
 }
 
 model Direcciones {
@@ -313,11 +310,11 @@ model Departamentos_sucursales {
 model Servicios_departamentos_sucursales {
   servicio                 Servicios                @relation(fields: [servicio_id], references: [id])
   servicio_id              Int
-  departamento_sucursal    Departamentos_sucursales @relation(fields: [departamento_sucursal_id], references: [refId])
-  departamento_sucursal_id Int
+  departamento_sucursal    Departamentos_sucursales @relation(fields: [departamento_sucursal_refId], references: [refId])
+  departamento_sucursal_refId Int
   estatus                  Boolean?                 @default(true)
 
-  @@id([servicio_id, departamento_sucursal_id])
+  @@id([servicio_id, departamento_sucursal_refId])
 }
 
 model Horarios_sucursales {
@@ -483,7 +480,7 @@ model Servicios_seguros {
   seguro_id    Int
   protocolo    Protocolos @relation(fields: [protocolo_id], references: [id])
   protocolo_id Int
-  cobertura    String     @db.VarChar(10)
+  cobertura    String?     @db.VarChar(10)
   prioridad    Int
   estatus      Boolean?    @default(true)
 
@@ -497,7 +494,7 @@ model Servicios_dependientes {
   servicio_dependiente_id   Int
   protocolo                 Protocolos @relation(fields: [protocolo_id], references: [id])
   protocolo_id              Int
-  razon_por_realizar        String     @db.VarChar(10)
+  razon_por_realizar        String     @db.VarChar(50)
   prioridad                 Int
   estatus                   Boolean?   @default(true)
 }

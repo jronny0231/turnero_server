@@ -13,13 +13,18 @@ export const verifyActiveUserToken = async (_req: any, res: any, next: NextFunct
       }
     
     // Verify if online user account has same token stored.
-    const loggedToken: string|null = await getTokenById(id);
+    try{
+      const loggedToken: string|null = await getTokenById(id);
 
-    if(!loggedToken || (loggedToken !== token)){
-      setTokenById(id, "");
-      res.locals.payloay = null;
-      return res.status(403).json({message: "invalid session token, user logged out."});
+      if(!loggedToken || (loggedToken !== token)){
+        setTokenById(id, "");
+        res.locals.payloay = null;
+        return res.status(403).json({message: "invalid session token, user logged out."});
+      }
+    }catch(error){
+      return res.status(500).json({message: "error trying connect to database."})
     }
+    
 
     next();
     return 

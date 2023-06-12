@@ -28,6 +28,18 @@ export const GetAll = async (): Promise<Grupos_servicios[]> => {
     return findServiceGroup;
   }
 
+  export const GetsBy = async (params: Partial<Grupos_servicios>): Promise<Grupos_servicios[]> => {
+    const findServiceGroup = await gruposervicios.findMany({
+      where: params,
+    })
+    .then((result) => result)
+    .finally(async () => {
+      await prisma.$disconnect()
+    })
+
+    return findServiceGroup;
+  }
+
   export const Store = async (data: Grupos_servicios): Promise<Grupos_servicios> => {
   
     const newServiceGroup: Grupos_servicios = await gruposervicios.create({

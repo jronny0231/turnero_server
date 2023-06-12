@@ -3,7 +3,7 @@ import cors from 'cors';
 
 const App = express();
 
-const PORT = process.env.port || 5000;
+const PORT: number = Number(process.env.PORT) || 5000;
 
 App.use(cors({
   origin: '*',
@@ -11,6 +11,7 @@ App.use(cors({
 }));
 
 App.use(express.json());
+App.use(express.static(__dirname + '/public'));
 
 App.listen(PORT, () => {
   console.log('Server Express running on port ' + PORT);
