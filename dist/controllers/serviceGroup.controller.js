@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeleteServiceGroup = exports.UpdateServiceGroup = exports.StoreNewServiceGroup = exports.GetServiceGroupById = exports.GetAllServicesGroup = void 0;
+exports.DeleteServiceGroup = exports.UpdateServiceGroup = exports.StoreNewServiceGroup = exports.GetServiceGroupById = exports.GetAllSelectableServicesGroup = exports.GetAllServicesGroup = void 0;
 const serviceGroup_model_1 = require("../models/serviceGroup.model");
 const filtering_1 = require("../utils/filtering");
 /**
@@ -24,13 +24,23 @@ exports.GetAllServicesGroup = ((_req, res) => {
         const data = serviceGroups.map((serviceGroup) => {
             return (0, filtering_1.ObjectFiltering)(serviceGroup, OUTPUT_TYPES_GRUPOSERVICIOS);
         });
-        res.send({ success: true, data });
+        return res.send({ success: true, data });
     })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-        res.status(404).send({ error: error.message });
+        return res.status(404).send({ error: error.message });
+    }));
+});
+exports.GetAllSelectableServicesGroup = ((_req, res) => {
+    (0, serviceGroup_model_1.GetsBy)({ es_seleccionable: true }).then((serviceGroups) => {
+        const data = serviceGroups.map((serviceGroup) => {
+            return (0, filtering_1.ObjectFiltering)(serviceGroup, OUTPUT_TYPES_GRUPOSERVICIOS);
+        });
+        return res.send({ success: true, data });
+    }).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
+        return res.status(404).send({ error: error.message });
     }));
 });
 exports.GetServiceGroupById = ((_req, res) => {
-    res.send('Get Grupos Servicios by ID');
+    return res.send('Get Grupos Servicios by ID');
 });
 exports.StoreNewServiceGroup = ((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = req.body;
@@ -48,8 +58,8 @@ exports.StoreNewServiceGroup = ((req, res) => __awaiter(void 0, void 0, void 0, 
     return;
 }));
 exports.UpdateServiceGroup = ((_req, res) => {
-    res.send('Update a Grupo Servicios');
+    return res.send('Update a Grupo Servicios');
 });
 exports.DeleteServiceGroup = ((_req, res) => {
-    res.send('Delete a Grupo Servicios');
+    return res.send('Delete a Grupo Servicios');
 });

@@ -1,4 +1,27 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -12,13 +35,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setTokenById = exports.getTokenById = exports.Logout = exports.Login = exports.DeleteUser = exports.UpdatePassword = exports.UpdateAccount = exports.UpdateUser = exports.StoreNewUser = exports.GetUserByTokenId = exports.GetUserById = exports.GetAllUsers = void 0;
-const user_model_1 = require("../models/user.model");
+exports.setTokenById = exports.getTokenById = exports.Logout = exports.Login = exports.DeleteUser = exports.UpdatePassword = exports.UpdateAccount = exports.UpdateUser = exports.StoreNewUser = exports.GetAgentByTokenId = exports.GetUserByTokenId = exports.GetUserById = exports.GetAllUsers = void 0;
+const UserModel = __importStar(require("../models/user.model"));
+const AgentModel = __importStar(require("../models/agent.model"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const filtering_1 = require("../utils/filtering");
 const jwt_helper_1 = require("../services/jwt.helper");
-const PASSWORD_SALT = 10;
-const DEFAULT_PASSWORD = "1234abcd";
+const PASSWORD_SALT = Number(process.env.PASSWORD_SALT) || 10;
+const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD || "1234abcd";
 const INPUT_TYPES_USUARIOS = ['nombres', 'correo', 'username', 'password', 'rol_id'];
 const OUTPUT_TYPES_USUARIOS = ['id', 'nombres', 'correo', 'username', 'rol', 'activo', 'createdAt', 'updateAt'];
 const SUPER_USER = {
@@ -40,7 +64,7 @@ const encryptPassword = (password) => __awaiter(void 0, void 0, void 0, function
     });
 });
 exports.GetAllUsers = ((_req, res) => {
-    (0, user_model_1.GetAll)().then((users => {
+    UserModel.GetAll().then((users => {
         const data = users.map((user) => {
             return (0, filtering_1.ObjectFiltering)(user, OUTPUT_TYPES_USUARIOS);
         });
@@ -52,7 +76,7 @@ exports.GetAllUsers = ((_req, res) => {
 // How to convert string to number in typescript?       
 exports.GetUserById = ((req, res) => {
     const id = Number(req.params.id);
-    (0, user_model_1.GetById)(id).then((user => {
+    UserModel.GetById(id).then((user => {
         const data = (0, filtering_1.ObjectFiltering)(user, OUTPUT_TYPES_USUARIOS);
         res.send({ success: true, data });
     })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
@@ -61,10 +85,20 @@ exports.GetUserById = ((req, res) => {
 });
 // How to convert string to number in typescript?       
 exports.GetUserByTokenId = ((id, res) => {
-    (0, user_model_1.GetById)(id).then((user => {
+    UserModel.GetById(id).then((user => {
         const data = (0, filtering_1.ObjectFiltering)(user, OUTPUT_TYPES_USUARIOS);
         res.send({ success: true, data });
     })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
+        res.status(404).send({ error: error.message });
+    }));
+});
+exports.GetAgentByTokenId = ((id, res) => {
+    AgentModel.GetById(id).then(agent => {
+        const data = (0, filtering_1.ObjectFiltering)(agent, [
+            'id', 'nombre', 'descripcion', 'grupo_servicio', 'tipo_agente', 'departamento_sucursal', 'estatus'
+        ]);
+        res.send({ success: true, data });
+    }).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
         res.status(404).send({ error: error.message });
     }));
 });
@@ -76,7 +110,7 @@ exports.StoreNewUser = ((req, res) => {
     }
     encryptPassword((_a = data.password) !== null && _a !== void 0 ? _a : null).then((password) => {
         data.password = password;
-        (0, user_model_1.Store)(data).then((newUser => {
+        UserModel.Store(data).then((newUser => {
             const data = (0, filtering_1.ObjectFiltering)(newUser, OUTPUT_TYPES_USUARIOS);
             return res.send({ message: 'User created successfully!', data });
         })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
@@ -92,7 +126,7 @@ exports.StoreNewUser = ((req, res) => {
 exports.UpdateUser = ((req, res) => {
     const id = Number(req.params.id);
     const bodyData = req.body;
-    (0, user_model_1.Update)(id, bodyData).then((updateUser => {
+    UserModel.Update(id, bodyData).then((updateUser => {
         const data = (0, filtering_1.ObjectFiltering)(updateUser, OUTPUT_TYPES_USUARIOS);
         return res.send({ success: true, data });
     })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
@@ -106,7 +140,7 @@ exports.UpdateAccount = ((req, res) => {
         res.status(403).json({ message: "Cannont change super user data." });
         return;
     }
-    (0, user_model_1.Update)(id, bodyData).then((updateUser => {
+    UserModel.Update(id, bodyData).then((updateUser => {
         const data = (0, filtering_1.ObjectFiltering)(updateUser, OUTPUT_TYPES_USUARIOS);
         return res.send({ success: true, data });
     })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
@@ -117,20 +151,21 @@ exports.UpdatePassword = ((req, res) => {
     var _a, _b;
     const id = Number((_a = req.params.id) !== null && _a !== void 0 ? _a : res.locals.payload.id);
     if (id === 0) {
-        res.status(403).json({ message: "Cannont change super user data." });
-        return;
+        return res.status(403).json({ message: "Cannont change super user data." });
     }
-    encryptPassword((_b = req.body.password) !== null && _b !== void 0 ? _b : null).then((password) => {
-        (0, user_model_1.Update)(id, { password }).then((_user => {
-            return res.send({ success: true });
+    const plainPassword = (_b = req.body.password) !== null && _b !== void 0 ? _b : DEFAULT_PASSWORD;
+    encryptPassword(plainPassword).then((password) => {
+        UserModel.Update(id, { password }).then((_user => {
+            return res.send({ success: true, data: { plainPassword } });
         })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-            res.status(400).send({ error: error.message });
+            return res.status(400).send({ error: error.message });
         }));
     });
+    return;
 });
 exports.DeleteUser = ((req, res) => {
     const id = Number(req.params.id);
-    (0, user_model_1.Delete)(id).then((result) => {
+    UserModel.Delete(id).then((result) => {
         console.log(result);
         return res.json({ success: true });
     }).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
@@ -149,27 +184,30 @@ exports.Login = ((req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const token = (0, jwt_helper_1.createToken)({ type: "super", id: 0, username, correo: "super@user.com" });
         return res.json({ token });
     }
-    yield (0, user_model_1.GetBy)({ username })
+    yield UserModel.GetBy({ username })
         .then((user) => __awaiter(void 0, void 0, void 0, function* () {
         const isEqual = bcrypt_1.default.compareSync(password, user.password);
         if (isEqual) {
             const filterUser = (0, filtering_1.ObjectFiltering)(user, ['id', 'username', 'correo']);
-            const token = (0, jwt_helper_1.createToken)(Object.assign({ type: "user" }, filterUser));
-            yield (0, user_model_1.Update)(user.id, { token });
+            const token = (0, jwt_helper_1.createToken)(Object.assign({ type: 'user' }, filterUser));
+            yield UserModel.Update(user.id, { token });
             return res.json({ token });
         }
         return res.status(400).json({ message: 'username or password not match' });
     }))
         .catch((error) => {
         console.error({ error });
-        return res.status(400).json({ message: 'username or password not match', errorcode: error.code });
+        if (error.code === 'P2025') {
+            return res.status(400).json({ message: 'username or password not match' });
+        }
+        return res.status(500).json({ message: 'error trying connect to database.', errorcode: error.code });
     });
-    return res.status(400);
+    return;
 }));
 exports.Logout = ((_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const id = res.locals.payload.id;
     if (id > 0) {
-        yield (0, user_model_1.Update)(id, { token: "" }).then((_data => {
+        yield UserModel.Update(id, { token: "" }).then((_data => {
             return res.status(200).json({ message: 'you are logged out' });
         })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
             return res.status(400).send({ error: error.message });
@@ -177,7 +215,7 @@ exports.Logout = ((_req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
 }));
 exports.getTokenById = ((id) => __awaiter(void 0, void 0, void 0, function* () {
-    const token = yield (0, user_model_1.GetById)(id).then((user) => {
+    const token = yield UserModel.GetById(id).then((user) => {
         if (!user.activo)
             return null;
         return user.token;
@@ -188,7 +226,7 @@ exports.getTokenById = ((id) => __awaiter(void 0, void 0, void 0, function* () {
     return token !== null && token !== void 0 ? token : null;
 }));
 exports.setTokenById = ((id, token) => {
-    (0, user_model_1.Update)(id, { token }).then((_user) => {
+    UserModel.Update(id, { token }).then((_user) => {
         return true;
     }).catch((error) => {
         console.error(error);

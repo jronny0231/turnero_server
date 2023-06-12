@@ -9,83 +9,83 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Delete = exports.Update = exports.Store = exports.GetsBy = exports.GetById = exports.GetAllDependentsBySelectableId = exports.GetAllInGroups = exports.GetAll = void 0;
+exports.Delete = exports.Update = exports.FindOrCreate = exports.Store = exports.GetsBy = exports.GetBy = exports.GetById = exports.GetAll = void 0;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
-const servicios = prisma.servicios;
+const clientes = prisma.clientes;
 const GetAll = () => __awaiter(void 0, void 0, void 0, function* () {
-    const services = yield servicios.findMany({
-        include: { grupo: true }
+    const clients = yield clientes.findMany({
+    // Connect with all related tables
     })
         .then((result) => result)
         .finally(() => __awaiter(void 0, void 0, void 0, function* () {
         yield prisma.$disconnect();
     }));
-    return services;
+    return clients;
 });
 exports.GetAll = GetAll;
-const GetAllInGroups = (params) => __awaiter(void 0, void 0, void 0, function* () {
-    const servicesInGroups = yield prisma.grupos_servicios.findMany({
-        where: params,
-        include: {
-            servicio: {
-                where: params,
-            }
-        }
-    })
-        .then((result) => result)
-        .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-        yield prisma.$disconnect();
-    }));
-    return servicesInGroups;
-});
-exports.GetAllInGroups = GetAllInGroups;
-const GetAllDependentsBySelectableId = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    const dependents = yield prisma.servicios_dependientes.findMany({
-        where: { servicio_seleccionable_id: id },
-    }).then((result) => result)
-        .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-        yield prisma.$disconnect();
-    }));
-    return dependents;
-});
-exports.GetAllDependentsBySelectableId = GetAllDependentsBySelectableId;
 const GetById = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    const findService = yield servicios.findFirstOrThrow({
+    const findClient = yield clientes.findFirstOrThrow({
         where: { id: id },
+        // Connect with all related tables
     })
         .then((result) => result)
         .finally(() => __awaiter(void 0, void 0, void 0, function* () {
         yield prisma.$disconnect();
     }));
-    return findService;
+    return findClient;
 });
 exports.GetById = GetById;
-const GetsBy = (params) => __awaiter(void 0, void 0, void 0, function* () {
-    const filterServices = yield servicios.findMany({
+const GetBy = (params) => __awaiter(void 0, void 0, void 0, function* () {
+    const filterClient = yield clientes.findFirstOrThrow({
         where: params,
-        include: { grupo: true }
+        // Connect with all related tables
     })
         .then((result) => result)
         .finally(() => __awaiter(void 0, void 0, void 0, function* () {
         yield prisma.$disconnect();
     }));
-    return filterServices;
+    return filterClient;
+});
+exports.GetBy = GetBy;
+const GetsBy = (params) => __awaiter(void 0, void 0, void 0, function* () {
+    const filterClients = yield clientes.findMany({
+        where: params,
+        // Connect with all related tables
+    })
+        .then((result) => result)
+        .finally(() => __awaiter(void 0, void 0, void 0, function* () {
+        yield prisma.$disconnect();
+    }));
+    return filterClients;
 });
 exports.GetsBy = GetsBy;
 const Store = (data) => __awaiter(void 0, void 0, void 0, function* () {
-    const newService = yield servicios.create({
+    const newUser = yield clientes.create({
         data
     })
         .then((result) => result)
         .finally(() => __awaiter(void 0, void 0, void 0, function* () {
         yield prisma.$disconnect();
     }));
-    return newService;
+    return newUser;
 });
 exports.Store = Store;
+const FindOrCreate = (params, data) => __awaiter(void 0, void 0, void 0, function* () {
+    const newUser = yield clientes.upsert({
+        where: params,
+        update: {},
+        create: data,
+    })
+        .then((result) => result)
+        .finally(() => __awaiter(void 0, void 0, void 0, function* () {
+        yield prisma.$disconnect();
+    }));
+    return newUser;
+});
+exports.FindOrCreate = FindOrCreate;
 const Update = (id, data) => __awaiter(void 0, void 0, void 0, function* () {
-    const update = yield servicios.update({
+    const update = yield clientes.update({
         where: { id: id },
         data: data,
     })
@@ -97,7 +97,7 @@ const Update = (id, data) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.Update = Update;
 const Delete = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield servicios.delete({
+    return yield clientes.delete({
         where: { id }
     })
         .then((result) => result)

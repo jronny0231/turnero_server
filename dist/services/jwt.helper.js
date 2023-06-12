@@ -6,18 +6,26 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.refreshToken = exports.createToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const user_controller_1 = require("../controllers/user.controller");
+const filtering_1 = require("../utils/filtering");
 const PRIVATE_TOKEN_SECRET = "@#$56;ñasdasdasdÑasdad$%&5468(//&//#hnAde!/ñpP[];mnf234-=&111;ñaqxqeAAQW12$%$&°";
 const TOKEN_SECRET = process.env.TOKEN_SECRET || PRIVATE_TOKEN_SECRET;
 exports.createToken = ((payload) => {
+    const now = new Date(Date.now());
+    const lastDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), (16 - now.getHours()) + now.getHours(), 59, 59);
+    const timeStart = now.getSeconds() * now.getMinutes() * now.getHours();
+    const timeEnd = lastDate.getSeconds() * lastDate.getMinutes() * lastDate.getHours();
+    const timeLeft = timeEnd - timeStart;
+    console.log({ lastDate, timeStart, timeEnd, timeLeft });
     return jsonwebtoken_1.default.sign({
-        exp: Math.floor(Date.now() / 1000) + (60 * 60),
+        exp: Math.floor(Date.now() / 1000) + timeLeft,
         data: payload
     }, TOKEN_SECRET);
 });
 exports.refreshToken = ((_req, res) => {
     const payload = res.locals.payload;
     if (payload.type === "user") {
-        const token = (0, exports.createToken)(payload);
+        const filterPayload = (0, filtering_1.ObjectFiltering)(payload, ['id', 'username', 'correo']);
+        const token = (0, exports.createToken)(Object.assign({ type: "user" }, filterPayload));
         (0, user_controller_1.setTokenById)(payload.id, token);
         return res.json({ token });
     }

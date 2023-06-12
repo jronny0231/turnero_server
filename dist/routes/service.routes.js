@@ -11,9 +11,12 @@ const activeUser_middlewares_1 = require("../middlewares/activeUser.middlewares"
 const router = express_1.default.Router();
 router.get('/groups/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.GetAllServicesGroup);
 router.get('/groups/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.GetServiceGroupById);
+router.get('/selectable-groups/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.GetAllSelectableServicesGroup);
 router.post('/groups/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.StoreNewServiceGroup);
 router.put('/groups/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.UpdateServiceGroup);
 router.delete('/groups/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, serviceGroup_controller_1.DeleteServiceGroup);
+router.get('/groups/:id/services/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.GetAllServicesByServiceGroup);
+router.get('/groups/:id/selectable-services/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.GetAllSeletableServicesByServiceGroup);
 router.get('/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.GetAllServices);
 router.get('/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.GetServiceById);
 router.post('/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, service_controller_1.StoreNewService);
