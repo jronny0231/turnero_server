@@ -71,12 +71,14 @@ export const GetAllDependentsBySelectableId = async (id: number): Promise<Servic
     return filterServices;
   }
 
-  export const Store = async (data: Servicios): Promise<Servicios> => {
-  
-    const newService: Servicios = await servicios.create({
-      data
-    })
-    .then((result) => result)
+  export const Store = async ({data}: {data: Servicios | Servicios[]}): Promise<Servicios | Number> => {
+    const instance = async () => {
+      if (data instanceof Array) {
+        return await servicios.createMany({data}).then(result => result.count)
+      }
+      return await servicios.create({data}).then((result) => result)
+    }
+    const newService: Servicios | Number = await instance()
     .finally(async () => {
       await prisma.$disconnect()
     })

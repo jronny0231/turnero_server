@@ -3,23 +3,26 @@ import { authToken } from '../middlewares/activeToken.middlewares';
 import { DeleteService, GetAllServices, GetAllServicesByServiceGroup, GetAllSeletableServicesByServiceGroup, GetServiceById, StoreNewService, UpdateService } from '../controllers/service.controller';
 import { DeleteServiceGroup, GetAllServicesGroup, GetAllSelectableServicesGroup, GetServiceGroupById, StoreNewServiceGroup, UpdateServiceGroup } from '../controllers/serviceGroup.controller';
 import { verifyActiveUserToken } from '../middlewares/activeUser.middlewares';
+import { middlewaresType } from '../@types/global';
 
 const router = express.Router()
 
-router.get('/groups/', authToken, verifyActiveUserToken, GetAllServicesGroup);
-router.get('/groups/:id', authToken, verifyActiveUserToken, GetServiceGroupById);
-router.get('/selectable-groups/', authToken, verifyActiveUserToken, GetAllSelectableServicesGroup);
-router.post('/groups/', authToken, verifyActiveUserToken, StoreNewServiceGroup);
-router.put('/groups/:id', authToken, verifyActiveUserToken, UpdateServiceGroup);
-router.delete('/groups/:id', authToken, verifyActiveUserToken, DeleteServiceGroup);
+const middlewares: middlewaresType = [authToken, verifyActiveUserToken];
 
-router.get('/groups/:id/services/', authToken, verifyActiveUserToken, GetAllServicesByServiceGroup);
-router.get('/groups/:id/selectable-services/', authToken, verifyActiveUserToken, GetAllSeletableServicesByServiceGroup);
+router.get('/groups/', middlewares, GetAllServicesGroup);
+router.get('/groups/:id', middlewares, GetServiceGroupById);
+router.get('/selectable-groups/', middlewares, GetAllSelectableServicesGroup);
+router.post('/groups/', middlewares, StoreNewServiceGroup);
+router.put('/groups/:id', middlewares, UpdateServiceGroup);
+router.delete('/groups/:id', middlewares, DeleteServiceGroup);
 
-router.get('/', authToken, verifyActiveUserToken, GetAllServices);
-router.get('/:id', authToken, verifyActiveUserToken, GetServiceById);
-router.post('/', authToken, verifyActiveUserToken, StoreNewService);
-router.put('/:id', authToken, verifyActiveUserToken, UpdateService);
-router.delete('/:id', authToken, verifyActiveUserToken, DeleteService);
+router.get('/groups/:id/services/', middlewares, GetAllServicesByServiceGroup);
+router.get('/groups/:id/selectable-services/', middlewares, GetAllSeletableServicesByServiceGroup);
+
+router.get('/', middlewares, GetAllServices);
+router.get('/:id', middlewares, GetServiceById);
+router.post('/', middlewares, StoreNewService);
+router.put('/:id', middlewares, UpdateService);
+router.delete('/:id', middlewares, DeleteService);
 
 export default router;

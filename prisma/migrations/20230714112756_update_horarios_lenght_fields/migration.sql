@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Horarios" ALTER COLUMN "nombre" SET DATA TYPE VARCHAR(20),
+ALTER COLUMN "nombre_corto" SET DATA TYPE VARCHAR(5);

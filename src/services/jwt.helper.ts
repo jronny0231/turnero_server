@@ -5,18 +5,12 @@ import { ObjectFiltering } from '../utils/filtering';
 const PRIVATE_TOKEN_SECRET="@#$56;ñasdasdasdÑasdad$%&5468(//&//#hnAde!/ñpP[];mnf234-=&111;ñaqxqeAAQW12$%$&°"
 const TOKEN_SECRET = process.env.TOKEN_SECRET || PRIVATE_TOKEN_SECRET;
 
+export const getSecret = (): string => TOKEN_SECRET
 
-export const createToken = ((payload: {}): string => {
-  const now: Date = new Date(Date.now());
-  const lastDate: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), (16 - now.getHours()) + now.getHours(), 59, 59);
-  const timeStart: number = now.getSeconds() * now.getMinutes() * now.getHours();
-  const timeEnd: number = lastDate.getSeconds() * lastDate.getMinutes() * lastDate.getHours();
-  const timeLeft: number = timeEnd - timeStart;
-
-  console.log({lastDate, timeStart, timeEnd, timeLeft})
-
+export const createToken = ((payload: object): string => {
+  
   return jwt.sign({
-    exp: Math.floor(Date.now() / 1000) + timeLeft , // time until 23 hours
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 12, // exp after 12 hours
     data: payload
   }, TOKEN_SECRET);
 });

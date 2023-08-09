@@ -1,7 +1,15 @@
-import { NextFunction } from "express";
+import {Request, Response, NextFunction } from "express";
 import { getTokenById, setTokenById } from "../controllers/user.controller";
 
-export const verifyActiveUserToken = async (_req: any, res: any, next: NextFunction) => {
+const asyncResult = {
+  ok: true,
+  data: {
+    code: 200,
+    msg: ""
+  }
+}
+
+export const verifyActiveUserToken = (_req: Request, res: Response, next: NextFunction) => {
     
     const token: string = res.locals.payload.token;
     const id: number = res.locals.payload.id
@@ -12,20 +20,47 @@ export const verifyActiveUserToken = async (_req: any, res: any, next: NextFunct
         return
       }
     
-    // Verify if online user account has same token stored.
-    try{
-      const loggedToken: string|null = await getTokenById(id);
+    // Verify asynchronously if online user account has same token stored.
+    new Promise(async (resolve, reject) => {
+      try{
+        const loggedToken: string|null = await getTokenById(id);
+  
+        if(!loggedToken || (loggedToken !== token)){
+          setTokenById(id, "");
+          res.locals.payload = null;
+          reject({
+            code: 403,
+            msg: 'invalid session token, user logged out'
+          })
+          return false
+        }
+        resolve({
+          code: 200,
+          msg: loggedToken
+        })
+        return true
 
-      if(!loggedToken || (loggedToken !== token)){
-        setTokenById(id, "");
-        res.locals.payloay = null;
-        return res.status(403).json({message: "invalid session token, user logged out."});
+      } catch(error){
+
+        reject({
+          code: 500,
+          msg: 'error trying connect to database'
+        })
+        return false
       }
-    }catch(error){
-      return res.status(500).json({message: "error trying connect to database."})
-    }
+    }).then((result) => {
+      asyncResult.data = {...result as {code: number, msg: string}}
+    })
+    .catch(error => {
+      asyncResult.ok = false
+      asyncResult.data = {...error as {code: number, msg: string}}      
+    })
     
+    if (asyncResult.ok) {
+      next()
+      return
+    }
 
-    next();
-    return 
+    return res.status(asyncResult.data.code).json({message: asyncResult.data.msg})
+   
 }

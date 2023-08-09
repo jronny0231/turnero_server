@@ -69,14 +69,15 @@ export const GetById = async (id: number): Promise<AgenteySucursal> => {
   return findAgent;
 }
 
-export const GetBy = async (params: {}): Promise<Agentes>  => {
+export const GetBy = async (params: Partial<Agentes>): Promise<Agentes>  => {
   const filterAgent = await agentes.findFirstOrThrow({
     where: params,
 
     include: {
       grupo_servicio: true,
       tipo_agente: true,
-      departamento_sucursal:  true
+      departamento_sucursal:  true,
+      usuario: true
     }
   })
   .then((result) => result)
@@ -102,6 +103,20 @@ export const GetsBy = async (params: {}): Promise<Agentes[]>  => {
   })
 
   return filterAgents;
+}
+
+export const GetByUserId = async (id: number): Promise<Agentes|null> => {
+  const agent: Agentes | null = await agentes.findUnique({
+    where: {
+      usuario_id: id
+    }
+  })
+  .then((result) => result)
+  .finally(async () => {
+    await prisma.$disconnect()
+  })
+
+  return agent
 }
 
 export const Store = async (data: Agentes): Promise<Agentes> => {

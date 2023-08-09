@@ -1,9 +1,8 @@
 import { NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { getSecret } from '../services/jwt.helper';
 
-const PRIVATE_TOKEN_SECRET="@#$56;ñasdasdasdÑasdad$%&5468(//&//#hnAde!/ñpP[];mnf234-=&111;ñaqxqeAAQW12$%$&°"
-const TOKEN_SECRET = process.env.TOKEN_SECRET || PRIVATE_TOKEN_SECRET;
-
+const TOKEN_SECRET: string = getSecret()
 
 export const authToken = ((req: any, res: any, next: NextFunction) => {
   // Request and check bearer token from header

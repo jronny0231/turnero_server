@@ -89,17 +89,33 @@ export const GetServiceById = ((_req: Request, res: Response) => {
 })
 
 export const StoreNewService = ( async (req: Request, res: Response) => {
-    const data: Servicios = req.body;
+    const data: Servicios | Servicios[] = req.body;
 
-    if(ObjectDifferences(data, INPUT_TYPES_SERVICIOS).length > 0){
-        return res.status(400).json({message: 'Incorrect or incomplete data in request', valid: INPUT_TYPES_SERVICIOS})
+    if (data instanceof Array){
+        let errors: Array<object> = []
+
+        data.forEach(service => {
+            if(ObjectDifferences(service, INPUT_TYPES_SERVICIOS).length > 0){
+                errors.push(service)
+            }
+        })
+
+        if (errors.length > 0) return res.status(400).json({message: 'Incorrect or incomplete data in request', valid: INPUT_TYPES_SERVICIOS, on: errors})
+
     }
     
-    ServicesModel.Store(data).then((newService) => {
-        const data = <Servicios> ObjectFiltering(newService, OUTPUT_TYPES_SERVICIOS);
+    ServicesModel.Store({data}).then((newServiceOrCount) => {
+        if (newServiceOrCount instanceof Number){
+            return res.json({message: 'Services created successfully!', data: {count: newServiceOrCount}});
+        }
 
+        if (newServiceOrCount instanceof Object){
+            const data = <Servicios> ObjectFiltering(newServiceOrCount, OUTPUT_TYPES_SERVICIOS);
             return res.json({message: 'Service created successfully!', data});
-    
+        }
+
+        return res.json({message: 'Service created successfully', data: newServiceOrCount})
+
     }).catch(async (error) => {
 
         if(error.code === 'P2000')
@@ -107,6 +123,7 @@ export const StoreNewService = ( async (req: Request, res: Response) => {
         
         return res.status(400).json({error: error.message});
     })
+
     return
 })
 

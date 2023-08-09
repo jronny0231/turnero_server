@@ -1,4 +1,3 @@
-import { CreateOptions } from "html-pdf"
 
 export type postTemplateType = {
     logo: string
@@ -10,7 +9,7 @@ export type postTemplateType = {
     fecha: Date
 }
 
-export const POSTemplate = (data: postTemplateType): {content: string, options: CreateOptions} => {
+export const POSTemplate = (data: postTemplateType): {content: string} => {
     const dateString: string = data.fecha.toLocaleDateString('es-DO', 
         { weekday:"long", year:"numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"}) 
 
@@ -92,27 +91,6 @@ export const POSTemplate = (data: postTemplateType): {content: string, options: 
         </html>
     `
 
-    const options: CreateOptions = {
-
-        // Export options
-        directory: "./tmp",       // The directory the file gets written into if not using .toFile(filename, callback). default: '/tmp'
-      
-        // Papersize Options: http://phantomjs.org/api/webpage/property/paper-size.html
-        height: "120mm",        // allowed units: mm, cm, in, px
-        width: "80mm",
-        
-        border: {
-            top: "5mm",            // default is 0, units: mm, cm, in, px
-            right: "2mm",
-            bottom: "5mm",
-            left: "2mm"
-          },
-        
-        type: "pdf",
-        //base: 'file:///' + __dirname.replace('\\','/') + '/src/assets/'
-        
-    }
-
-    console.log(__dirname, options.base);
-    return { content, options }
+    
+    return { content }
 }

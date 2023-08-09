@@ -5,7 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  shadowDatabaseUrl = env("DATABASE_SHADOW")
+  // shadowDatabaseUrl = env("DATABASE_SHADOW")
 }
 
 enum Tipado_protocolos {
@@ -24,6 +24,12 @@ enum Tipado_estados_turnos {
   TERMINADO
 }
 
+enum turno_llamada {
+  UNCALLED
+  CALLING
+  CALLED
+}
+
 enum Tipado_marcas_tv {
   ROKU_TV
   SAMSUNG_TV
@@ -36,8 +42,8 @@ model Turnos {
   servicio_actual_id  Int
   servicio_destino    Servicios      @relation(fields: [servicio_destino_id], references: [id])
   servicio_destino_id Int
-  estado_turno        Estados_turnos @relation(fields: [estado_turno_id], references: [id])
-  estado_turno_id     Int
+  estado_turno        Estados_turnos? @relation(fields: [estado_turno_id], references: [id])
+  estado_turno_id     Int?            @default(1)
   cola_posicion       Int
   cliente             Clientes       @relation(fields: [cliente_id], references: [id])
   cliente_id          Int
@@ -49,6 +55,7 @@ model Turnos {
   createdAt           DateTime?      @default(now())
 
   atenciones_turnos_servicios Atenciones_turnos_servicios[]
+  servicios_dependientes Servicios_dependientes[]
 }
 
 model Estados_turnos {
@@ -58,6 +65,7 @@ model Estados_turnos {
   color_hex   String                @db.VarChar(7)
 
   turnos                  Turnos[]
+  Atenciones_turnos_servicios Atenciones_turnos_servicios[]
   opciones_menu_servicios Opciones_menu_servicios[]
 }
 
@@ -76,7 +84,6 @@ model Servicios {
   atenciones_turno_servicio Atenciones_turnos_servicios[]
   grabaciones_servicios     Grabaciones_servicios[]
   servicios_seguros         Servicios_seguros[]
-  servicios_dependientes    Servicios_dependientes[]
   tipos_visitas             Tipos_visitas[]
   Servicios_departamentos_sucursales Servicios_departamentos_sucursales[]
 }
@@ -93,17 +100,30 @@ model Grupos_servicios {
 }
 
 model Atenciones_turnos_servicios {
-  turno         Turnos    @relation(fields: [turno_id], references: [id])
-  turno_id      Int
-  agente        Agentes   @relation(fields: [agente_id], references: [id])
-  agente_id     Int
-  servicio      Servicios @relation(fields: [servicio_id], references: [id])
-  servicio_id   Int
-  hora_inicio   DateTime? @db.Time(0)
-  hora_fin      DateTime? @db.Time(0)
-  tiempo_espera DateTime? @db.Time(0)
+  turno             Turnos    @relation(fields: [turno_id], references: [id])
+  turno_id          Int
+  agente            Agentes   @relation(fields: [agente_id], references: [id])
+  agente_id         Int
+  servicio          Servicios @relation(fields: [servicio_id], references: [id])
+  servicio_id       Int
+  estado_turno      Estados_turnos? @relation(fields: [estado_turno_id], references: [id])
+  estado_turno_id   Int?     @default(1)
+  razon_cancelado   Razones_Cancelados? @relation(fields: [razon_cancelado_id], references: [id])
+  razon_cancelado_id  Int?
+  estatus_llamada   turno_llamada @default(UNCALLED)
+  hora_inicio       DateTime? @db.Time(0)
+  hora_fin          DateTime? @db.Time(0)
+  espera_segundos   Int?
 
   @@id([turno_id, agente_id, servicio_id])
+}
+
+model Razones_Cancelados {
+  id    Int   @id @default(autoincrement())
+  nombre  String  @db.VarChar(30)
+  descripcion  String  @db.VarChar(100)
+
+  Atenciones_Turnos_Servicios Atenciones_turnos_servicios[]
 }
 
 model Servicios_sucursales {
@@ -202,6 +222,7 @@ model Agentes {
   grupo_servicio_id    Int
   tipo_agente    Tipos_agentes @relation(fields: [tipo_agente_id], references: [id])
   tipo_agente_id Int
+  esperando      Boolean       @default(false)
   departamento_sucursal   Departamentos_sucursales @relation(fields: [departamento_sucursal_id], references: [refId])
   departamento_sucursal_id Int
   usuario        Usuarios      @relation(fields: [usuario_id], references: [id])
@@ -347,8 +368,8 @@ model Dias_laborales {
 
 model Horarios {
   id           Int       @id @default(autoincrement())
-  nombre       String    @db.VarChar(12)
-  nombre_corto String    @db.VarChar(3)
+  nombre       String    @db.VarChar(20)
+  nombre_corto String    @db.VarChar(5)
   hora_inicio  DateTime? @db.Time(0)
   hora_fin     DateTime? @db.Time(0)
 
@@ -461,7 +482,6 @@ model Protocolos {
   estatus           Boolean?         @default(true)
 
   servicios_seguros      Servicios_seguros[]
-  servicios_dependientes Servicios_dependientes[]
 }
 
 model Tipos_protocolos {
@@ -488,15 +508,10 @@ model Servicios_seguros {
 }
 
 model Servicios_dependientes {
-  id                        Int        @id @default(autoincrement())
-  servicio_seleccionable_id Int
-  servicio_dependiente      Servicios  @relation(fields: [servicio_dependiente_id], references: [id])
-  servicio_dependiente_id   Int
-  protocolo                 Protocolos @relation(fields: [protocolo_id], references: [id])
-  protocolo_id              Int
-  razon_por_realizar        String     @db.VarChar(50)
-  prioridad                 Int
-  estatus                   Boolean?   @default(true)
+  id              Int @id @default(autoincrement())
+  turno           Turnos @relation(fields: [turno_id], references: [id])
+  turno_id        Int
+  serie_servicios Json
 }
 
 model Usuarios {
