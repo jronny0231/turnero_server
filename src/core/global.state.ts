@@ -1,11 +1,11 @@
-import { Agentes, Departamentos, Pantallas, PrismaClient, Servicios, Sucursales } from '@prisma/client';
+import { Agentes, Departamentos, Pantallas, PrismaClient, Servicios, Sucursales, Tipado_estados_turnos } from '@prisma/client';
 import { Atenciones_turnos_servicios } from '@prisma/client';
 import { Turnos, turno_llamada } from "@prisma/client"
 import { UUID } from "crypto"
 import { stringToUUID } from "../utils/filtering"
 import { prismaTodayFilter } from '../utils/time.helpers';
-import { DisplayQueue } from '../@types/queue';
-import { addNewFlowList, getNextServiceId } from './flow.manage';
+import { DisplayQueue, attendingState } from '../@types/queue';
+import { addNewFlowList, getNextServiceId, updatePositionOrderList } from './flow.manage';
 
 
 // ***** OBJETO CON METODOS QUE SETEAN LOS ESTADOS DE LOS TURNOS ***** //
@@ -41,7 +41,9 @@ import { addNewFlowList, getNextServiceId } from './flow.manage';
  ✅ - Crea (si no existe) un Atenciones_Turnos_Llamada en CALLING usando como referencia: "setCallQueueState"
       -- El primer AGENTE libre de la sucursal y departamento
       -- El servicio actual del turno (como servicio subsiguiente)
- ✅ El agente cambia el estado de turno a ATENDIENDO y la pantalla setea la llamada a CALLED
+ ✅ El agente obtiene mediante el loop getAttendingQueueByUserId el turno que esta siendo llamado para su estacion
+     y procede a cambiar el estatus del turno y de la llamada a ATENDIENDO
+     y la pantalla setea la llamada a CALLED
  ✅ Si el agente desea volver a llamar el turno, el mismo debe estar en ESPERANDO o EN_ESPERA
  *  poniendo tambien el estado de la llamada en UNCALLED.
  */
@@ -63,15 +65,22 @@ interface TurnosActivos extends Atenciones_turnos_servicios {
     state_id: number
     servicio_name?: string
     departamento_name?: string
+    agente_name?: string
+    estado_turno_name?: Tipado_estados_turnos
 }
 
 interface QueueStateType extends Turnos {
     atencion: Array< TurnosActivos >
     displaysUUID: Array< UUID >
+    estado_turno_name?: Tipado_estados_turnos
 }
 
-interface GlobalOffices extends Pick<Sucursales, 'id' | 'descripcion' | 'siglas'> {
-    conjunto_agentes?: Array < Agentes >
+interface AgentesWithService extends Agentes {
+    esperando_servicios_destino_id?: Array <number>
+}
+
+interface GlobalOffices extends Sucursales {
+    conjunto_agentes?: Array < AgentesWithService >
     conjunto_servicios?: Array < Servicios >
     conjunto_departamentos?: Array < Departamentos >
     conjunto_pantallas?: Array < Pantallas > 
@@ -87,24 +96,17 @@ const prisma = new PrismaClient();
  * Metodo con ejecucion asincrona para actualizar
  * o setear los datos en la constante PERSISTENT_DATA
  */
-const refreshPersistentData = () => {
+export const refreshPersistentData = () => {
     new Promise(  async (resolve, reject) => {
         try {
             const data = await prisma.sucursales.findMany({
-                select: {
-                    id: true,
-                    descripcion: true,
-                    siglas: true,
+                include: {
                     departamentos_sucursales: {
-                        select: {
-                            agentes: true,
+                        select: { agentes: true,
                             servicios_departamentos_sucursales: {
-                                select: {
-                                    servicio: true,
+                                select: { servicio: true,
                                     departamento_sucursal: {
-                                        select: {
-                                            departamento: true
-                                        }
+                                        select: { departamento: true }
                                     }
                                 }
                             }
@@ -116,18 +118,14 @@ const refreshPersistentData = () => {
                     estatus: true,
                     departamentos_sucursales: {
                         some: {
-                            agentes: {
-                                some: {
-                                    estatus: true
-                                }
+                            agentes: { some: { estatus: true } },
+                            servicios_departamentos_sucursales: {
+                                some: { servicio: { estatus: true } }
                             }
                         }
                     },
-                    pantallas: {
-                        some: {
-                            estatus: true
-                        }
-                    }
+                    servicios_sucursales: { some: { disponible: true } },
+                    pantallas: { some: { estatus: true } }
                 }
             })
             .finally(async () => {
@@ -250,28 +248,28 @@ const updatePersistentData = (newState: typeof PERSISTENT_DATA) => {
  * Metodo con ejecucion asincrona para actualizar
  * o setear el estado en la constante QUEUE_STATE
  */
-const refreshQueueState = () => {
+export const refreshQueueState = () => {
     new Promise(  async (resolve, reject) => {
         try {
             const turnosActivos = await prisma.turnos.findMany({
                 where: {
                     estado_turno: {
-                        NOT: {
-                            OR: [
-                                { descripcion: "TERMINADO" },
-                                { descripcion: "CANCELADO" },
-                            ]
+                        descripcion: {
+                            notIn: [ 'CANCELADO', 'TERMINADO' ]
                         }
                     },
                     fecha_turno: prismaTodayFilter()
                 },
                 include: {
+                    estado_turno: true,
                     atenciones_turnos_servicios: {
                         include: {
                             servicio: true,
                             agente: {
                                 select: {
                                     id: true,
+                                    nombre: true,
+                                    descripcion: true,
                                     departamento_sucursal: {
                                         select: {
                                             sucursal: {
@@ -319,13 +317,16 @@ const refreshQueueState = () => {
                                 ...atencion,
                                 state_id: index,
                                 servicio_name: atencion.servicio.descripcion,
-                                departamento_name: atencion.agente.departamento_sucursal.departamento.descripcion
+                                departamento_name: atencion.agente.departamento_sucursal.departamento.descripcion,
+                                agente_name: atencion.agente.nombre,
+                                estado_turno_name: turno.estado_turno?.descripcion
                             }
                         })
                         .filter(entry => entry !== null)
                 
                 const entry: QueueStateType = {
                     ...turno,
+                    estado_turno_name: turno.estado_turno?.descripcion,
                     atencion,
                     displaysUUID
                 }
@@ -391,24 +392,84 @@ const updateQueueState = (newState: typeof QUEUE_STATE) => {
 }
 
 /**
- * Metodo asincrono para modificar la disponibilidad del agente.
+ * Devuelve el servicio que coincida con la ID
+ * @param id servicio
+ * @returns Servicio
+ */
+export const getServiceById = (id: number) => {
+    return PERSISTENT_DATA.map(sucursal => 
+        sucursal.conjunto_servicios?.filter(servicio => servicio.id === id)[0]
+    )[0] ?? null
+}
+
+/**
+ * Devuelve el listado de turnos activos en la sucursal
+ * @param id sucursal
+ * @returns 
+ */
+export const getQueuesListBySucursalId = (id: number) => {
+    return QUEUE_STATE.filter(turno => 
+        turno.sucursal_id === id   
+    )
+}
+
+export const getSucursalByUserId = (id: number) => {
+    return PERSISTENT_DATA.filter(sucursal =>
+        sucursal.conjunto_agentes?.filter(agente => agente.usuario_id === id)[0]
+    )[0] as Sucursales
+}
+
+type availableServs = {
+    sucursal_id: number
+    grupo_id?: number
+    es_seleccionable?: boolean
+}
+
+export const GetAllAvailableServicesInSucursal = ({sucursal_id, grupo_id, es_seleccionable}: availableServs) => {
+    const result = PERSISTENT_DATA.flatMap(sucursal => {
+        if (sucursal.id === sucursal_id) {
+            return  sucursal.conjunto_servicios
+                ?.filter(servicio => (
+                    grupo_id ? servicio.grupo_id === grupo_id : true
+                    && servicio.es_seleccionable === (es_seleccionable === undefined ? true : es_seleccionable)
+                )) ?? null
+        }
+        return null
+    }).filter(entry => entry !== null)
+
+    if (result.length === 0) return null
+    return result as Servicios[]
+}
+
+type agentStateType = {
+    usuario_id: number,
+    servicios_destino_id?: Array <number>,
+    esperando?: boolean
+}
+/**
+ * Metodo sincrono para modificar la disponibilidad del agente.
+ * opcionalmente puede establecer con que grupo de servicios el agente
+ * va a trabajar, si no lo setea se le asigna del flujo.
  * @param param0 
  * @returns 
  */
-export const setWaitingState = ({agente_id, esperando}: {agente_id: number, esperando: boolean}): boolean => {
-    const find = PERSISTENT_DATA.map(sucursal => {
+export const setWaitingState = ({usuario_id, esperando = true, servicios_destino_id}: agentStateType): boolean => {
+    const found = PERSISTENT_DATA.map(sucursal => {
         if (sucursal.conjunto_agentes !== undefined){
-            return sucursal.conjunto_agentes.filter(agente => agente.id === agente_id)[0]
+            return sucursal.conjunto_agentes.filter(agente => agente.usuario_id === usuario_id)[0]
         }
         return null
     }).filter(entry => entry !== null)[0]
 
-    if (find === null) return false
+    if (found === null) return false
     
     const newState = PERSISTENT_DATA.map(sucursal => {
         if (sucursal.conjunto_agentes !== undefined) {
             const newAgentes = sucursal.conjunto_agentes.map(agente => {
-                if (agente.id = agente_id) agente.esperando = esperando
+                if (agente.id === found.id) {
+                    agente.esperando = esperando // Setear el estado
+                    agente.esperando_servicios_destino_id = servicios_destino_id
+                }
                 return agente
             })
             return {
@@ -447,8 +508,8 @@ export const getCallQueueState = ({displayUUID}: {displayUUID: UUID}): DisplayQu
     const firstFilter: QueueStateType | null = QUEUE_STATE.filter( turno => {
         return (
             turno.displaysUUID?.includes(displayUUID) // Filtro de sucursal por pantalla
-            && turno.estado_turno_id !== null
-            && [1, 2].includes(turno.estado_turno_id) // Filtro de estado de turno "NUEVO" o "ESPERANDO"
+            && turno.estado_turno_name !== undefined
+            && ['NUEVA_SESION', 'ESPERANDO'].includes(turno.estado_turno_name)
             && turno.cola_posicion === 1 // La posicion del turno en la cola es 1, osea el primero.
         )
     } )[0] ?? null
@@ -458,8 +519,8 @@ export const getCallQueueState = ({displayUUID}: {displayUUID: UUID}): DisplayQu
     const firstUncalled = firstFilter.atencion
         .filter(entry => (
             entry.estatus_llamada === "UNCALLED"
-            &&  entry.estado_turno_id !== null
-            &&  entry.estado_turno_id === 1 // Filtro de estado de turno "NUEVO"
+            &&  entry.estado_turno_name !== undefined
+            &&  entry.estado_turno_name === 'NUEVA_SESION'
         ))[0] ?? null
 
 
@@ -468,29 +529,32 @@ export const getCallQueueState = ({displayUUID}: {displayUUID: UUID}): DisplayQu
         // Filtrar todos agente con columna esperando en true
         // en la sucursal y servicio correspondiente al turno
         const freeAgents = PERSISTENT_DATA
-            .filter(sucursal => sucursal !== null)
-            .map(sucursal => {
-                if (sucursal.conjunto_servicios !== undefined
-                    && sucursal.conjunto_agentes !== undefined
-                    && sucursal.conjunto_pantallas !== undefined
-                    && sucursal.id === firstFilter.sucursal_id) {
-                        const servicio = sucursal.conjunto_servicios.filter(servicio => {
-                            servicio.id === firstFilter.servicio_actual_id
-                        })[0]
-                        return sucursal.conjunto_agentes.filter(agente => (
-                            servicio.grupo_id === agente.grupo_servicio_id
-                            && agente.esperando
-                        ))
-                }
-                return null
-            })[0]
+        .filter(sucursal => sucursal !== null)
+        .map(sucursal => {
+            if (sucursal.conjunto_servicios !== undefined
+                && sucursal.conjunto_agentes !== undefined
+                && sucursal.conjunto_pantallas !== undefined
+                && sucursal.id === firstFilter.sucursal_id) {
+                    const servicio = sucursal.conjunto_servicios.filter(servicio => (
+                        servicio.id === firstFilter.servicio_actual_id
+                    ))[0]
+                    return sucursal.conjunto_agentes.filter(agente => (
+                        (agente.esperando_servicios_destino_id === undefined ? true :
+                            agente.esperando_servicios_destino_id.includes(firstFilter.servicio_destino_id))
+                        && servicio.grupo_id === agente.grupo_servicio_id
+                        && agente.esperando
+                    ))
+            }
+            return null
+        })[0]
 
         if (freeAgents === null) return null
+
         const firstFreeAgent = freeAgents.filter( agente => agente !== null)[0]
         const turno: Turnos = {...firstFilter} as Turnos
 
         findOrCreateAttendingReg({turno, agente_id: firstFreeAgent.id, servicio_id: turno.servicio_actual_id})
-        
+            
         return null
     }
 
@@ -582,12 +646,68 @@ export const setCallQueueState = ({state_id, displayUUID, estatus}: {state_id: n
     return true
 }
 
-type attendingState = {
-    agente_id: number,
-    servicio_id: number,
-    turno_id: number,
-    estado_turno_id: number,
-    razon_cancelado_id?: number
+interface activeQueueStateType extends Omit<QueueStateType, 'atencion'> {
+    activo: TurnosActivos
+} 
+
+/**
+ * Metodo ejecutado por la pantalla en loop
+ * para actualizar la lista de turnos que estan siendo atendidos
+ * o esperando a atender
+ * @param param0 
+ * @returns 
+ */
+export const getActiveQueueList = ({displayUUID}: {displayUUID: UUID}): Array<activeQueueStateType> | null => {
+    
+    const activeTurnosBySucursal = QUEUE_STATE.filter( turno => {
+        return (
+            turno.displaysUUID?.includes(displayUUID) // Filtro de turno por pantalla
+            && turno.estado_turno_name !== undefined
+            && ['ESPERANDO', 'ATENDIENDO', 'EN_ESPERA'].includes(turno.estado_turno_name)
+        )
+    })
+    if (activeTurnosBySucursal.length === 0) return null
+
+    const filterActiveAttending = activeTurnosBySucursal.map(turno => {
+        return {
+            ...turno,
+            activo: turno.atencion.filter(entry => entry.servicio_id === turno.servicio_actual_id )[0]
+        }
+    })
+
+    return filterActiveAttending as Array <activeQueueStateType>
+}
+
+/**
+ * Metodo ejecutado en loop por el agente mientras su estado de Esperando esta en true
+ * mediante el id del usuario logueado correspondiente al agente de servicio
+ * devuelve el turno activo que cumpla con las siguientes condiciones:
+ * - registro de atencion (creado por la pantalla) con el id del agente
+ * - estado de la llamada diferente a UNCALLED, indicando que no ha sido llamado
+ * - id del estado de la antencion en 1 o 2 indicando que es NUEVO o ESPERANDO
+ * @param usuario_id 
+ * @returns Turno
+ */
+export const getAttendingQueueByUserId = ({usuario_id}: {usuario_id: number}) => {
+
+    const agente = PERSISTENT_DATA.map(sucursal => 
+        sucursal.conjunto_agentes?.filter(agente => (
+            agente.usuario_id === usuario_id
+            && agente.esperando === true
+        ))[0]
+    )[0]
+    if (agente === undefined) return null
+    
+    const turnoActivo = QUEUE_STATE.map(turno =>
+        turno.atencion.filter(atencion => (
+            atencion.agente_id === agente.id
+            && atencion.estatus_llamada !== 'UNCALLED'
+            && atencion.estado_turno_name !== undefined
+            && ['NUEVA_SESION', 'ESPERANDO'].includes(atencion.estado_turno_name)
+        ))[0] ?? null
+    )[0] ?? null
+
+    return turnoActivo
 }
 
 /**
@@ -605,23 +725,23 @@ export const setAttendingState = async ({agente_id, servicio_id, turno_id, estad
     if (firstFilter === null) return false
 
     const attendReg = firstFilter.atencion
-        .filter(entry => {
-            return (
+        .filter(entry => (
                 entry.agente_id === agente_id
                 && entry.servicio_id === servicio_id
-            )
-        })[0] ?? null
+            ))[0] ?? null
     if (attendReg === null) return false
 
     const estado_turno = await prisma.estados_turnos.findFirst({
-        where: { turnos: { some: { id: turno_id } } }
+        where: { id: estado_turno_id }
     })
 
     if (estado_turno === null) return false
 
+    firstFilter.estado_turno_id = estado_turno.id
+    firstFilter.estado_turno_name = estado_turno.descripcion
 
-    firstFilter.estado_turno_id = estado_turno_id
-    attendReg.estado_turno_id = estado_turno_id
+    attendReg.estado_turno_id = estado_turno.id
+    attendReg.estado_turno_name = estado_turno.descripcion
 
     const nowTime = new Date()
     const preWaitSeconds = attendReg.espera_segundos ?? 0
@@ -629,19 +749,30 @@ export const setAttendingState = async ({agente_id, servicio_id, turno_id, estad
     const waitTimeSeconds =  preWaitSeconds + Math.floor((nowTime.getTime() - endTime.getTime()) / 1000)
     const {descripcion: estado} = estado_turno
     
+    let attendWillDelete: boolean = false
+    
     /**
      * El agente devuelve el turno a la cola para el mismo servicio
      * - Elimina la atencion registrada
-     * - Situa el orden del turno 3 posiciones atras
+     * - Situa el orden del turno X posiciones atras
      */
     if (['NUEVA_SESION'].includes(estado)) {
-
+        attendWillDelete = true
+        updatePositionOrderList({turno_id, nueva_posicion: 3}).then(result => {
+            console.log(`Rows updated when turno_id: ${turno_id} was reset to NUEVA_SESION`, result)
+        })
     }
 
+    /**
+     * El agente inicia o reinicia los procesos con el cliente
+     * - Pone el orden del cliente en 0
+     * - Adelanta el orden de los demas turnos 
+     */
     if (['ATENDIENDO'].includes(estado)) {
         attendReg.espera_segundos = waitTimeSeconds
         if (attendReg.hora_inicio === null) {
             attendReg.hora_inicio = nowTime
+            updatePositionOrderList({turno_id})
         }
         attendReg.estatus_llamada = 'CALLED'
     }
@@ -711,12 +842,19 @@ export const setAttendingState = async ({agente_id, servicio_id, turno_id, estad
         attendReg.razon_cancelado_id = razon_cancelado_id
     }
 
+
+    // Actualiza el estado y el turno con los parametros previamente
+    // modificados, en caso de ser eliminado no se incluye
     const newState = QUEUE_STATE.map(turno => {
         if (turno.id === firstFilter.id && turno.atencion !== null) {
             const atencion = turno.atencion.map(atencion => {
-                if (atencion.agente_id === agente_id)  return attendReg
+                if (atencion.agente_id === agente_id) {
+                    if (attendWillDelete) return null
+                    return attendReg
+                }
                 return atencion
-            })
+            }).filter(entry => entry !== null) as TurnosActivos[]
+
             return {
                 ...turno,
                 atencion

@@ -4,10 +4,10 @@ import { getDisplayProps } from '../middlewares/smartTV.middlewares';
 import { verifyActiveUserToken } from '../middlewares/activeUser.middlewares';
 import { middlewaresType } from '../@types/global';
 import { UUID } from 'crypto';
-import { getHorarios, setHorarios } from '../models/queue.model';
 import { Horarios, PrismaClient } from '@prisma/client';
 
 const router = express.Router()
+const prisma = new PrismaClient;
 
 const secMiddleware: middlewaresType = [authToken, verifyActiveUserToken];
 
@@ -118,8 +118,6 @@ router.post('/init/dictionaries', secMiddleware, (req: Request, res: Response) =
         ]
     }
 
-    const prisma = new PrismaClient;
-
     const response = Object.keys(commons).map( async (table: string) => {
         const data = commons[table]
 
@@ -145,24 +143,37 @@ router.post('/init/dictionaries', secMiddleware, (req: Request, res: Response) =
 
 router.put('/update/:id', async (req: Request, res: Response) => {
     const id: number = Number(req.params.id || 1);
-    const request: {} = {
-        ...req.body,
-        hora_inicio: ("2000-01-01T" + req.body.hora_inicio + "Z"),
-        hora_fin: ("2000-01-01T" + req.body.hora_fin + "Z")
+
+    try {
+        const request: {} = {
+            ...req.body,
+            hora_inicio: ("2000-01-01T" + req.body.hora_inicio + "Z"),
+            hora_fin: ("2000-01-01T" + req.body.hora_fin + "Z")
+        }
+        const data: Horarios = request as Horarios;
+    
+    
+        const response = await prisma.horarios.update({
+            where: { id }, data
+        }).finally(async () => await prisma.$disconnect())
+    
+        return res.json({success: true, data: response})
+    } catch (error) {
+        console.error(`Error trying update Horario id: ${id}`, {error})
+        return res.status(500).json({success: false, message: `Error trying update Horario id: ${id}`, data: error })
     }
-    const data: Horarios = request as Horarios;
-
-
-    const response = await setHorarios(id, data)
-
-    res.json({success: true, response})
 })
 
 router.get('/get/:id', async (req: Request, res: Response) => {
     const id: number = Number(req.params.id || 1);
-    const data = await getHorarios(id)
+    const data = await prisma.horarios.findFirst({
+        where: { id }
+    }).finally(async () => await prisma.$disconnect())
 
-    res.json({success: true, data})
+    if (data === null)
+        return res.status(404).send({success: false, message: `Horario id: ${id} not found`, data: null})
+
+    return res.json({success: true, data})
 })
 
 export default router;

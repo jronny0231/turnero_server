@@ -1,28 +1,28 @@
 import express from 'express';
 import { authToken } from '../middlewares/activeToken.middlewares';
-import { DeleteService, GetAllServices, GetAllServicesByServiceGroup, GetAllSeletableServicesByServiceGroup, GetServiceById, StoreNewService, UpdateService } from '../controllers/service.controller';
-import { DeleteServiceGroup, GetAllServicesGroup, GetAllSelectableServicesGroup, GetServiceGroupById, StoreNewServiceGroup, UpdateServiceGroup } from '../controllers/serviceGroup.controller';
+import * as serviceCtl from '../controllers/service.controller';
+import * as groupCtl from '../controllers/serviceGroup.controller';
 import { verifyActiveUserToken } from '../middlewares/activeUser.middlewares';
 import { middlewaresType } from '../@types/global';
+import validateWith from '../middlewares/validation.middlewares'
+import { createServices } from '../schemas/service.schema';
 
 const router = express.Router()
 
 const middlewares: middlewaresType = [authToken, verifyActiveUserToken];
 
-router.get('/groups/', middlewares, GetAllServicesGroup);
-router.get('/groups/:id', middlewares, GetServiceGroupById);
-router.get('/selectable-groups/', middlewares, GetAllSelectableServicesGroup);
-router.post('/groups/', middlewares, StoreNewServiceGroup);
-router.put('/groups/:id', middlewares, UpdateServiceGroup);
-router.delete('/groups/:id', middlewares, DeleteServiceGroup);
+router.get('/groups/', middlewares, groupCtl.GetAllServicesGroup);
+router.get('/groups/:id', middlewares, groupCtl.GetServiceGroupById);
+router.post('/groups/', middlewares, groupCtl.StoreNewServiceGroup);
+router.put('/groups/:id', middlewares, groupCtl.UpdateServiceGroup);
+router.delete('/groups/:id', middlewares, groupCtl.DeleteServiceGroup);
 
-router.get('/groups/:id/services/', middlewares, GetAllServicesByServiceGroup);
-router.get('/groups/:id/selectable-services/', middlewares, GetAllSeletableServicesByServiceGroup);
+router.get('/available/', middlewares, serviceCtl.GetAllAvailableServices);
 
-router.get('/', middlewares, GetAllServices);
-router.get('/:id', middlewares, GetServiceById);
-router.post('/', middlewares, StoreNewService);
-router.put('/:id', middlewares, UpdateService);
-router.delete('/:id', middlewares, DeleteService);
+router.get('/', middlewares, serviceCtl.GetAllServices);
+router.get('/:id', middlewares, serviceCtl.GetServiceById);
+router.post('/', middlewares, validateWith(createServices), serviceCtl.StoreNewServices);
+router.put('/:id', middlewares, serviceCtl.UpdateService);
+router.delete('/:id', middlewares, serviceCtl.DeleteService);
 
 export default router;

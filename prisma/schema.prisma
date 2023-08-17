@@ -39,8 +39,8 @@ enum Tipado_marcas_tv {
 model Turnos {
   id                  Int            @id @default(autoincrement())
   secuencia_ticket    String         @db.VarChar(5)
+  servicio_actual    Servicios      @relation(fields: [servicio_actual_id], references: [id])
   servicio_actual_id  Int
-  servicio_destino    Servicios      @relation(fields: [servicio_destino_id], references: [id])
   servicio_destino_id Int
   estado_turno        Estados_turnos? @relation(fields: [estado_turno_id], references: [id])
   estado_turno_id     Int?            @default(1)
@@ -494,6 +494,7 @@ model Tipos_protocolos {
 }
 
 model Servicios_seguros {
+  servicio_destino_id Int
   servicio     Servicios  @relation(fields: [servicio_id], references: [id])
   servicio_id  Int
   seguro       Seguros    @relation(fields: [seguro_id], references: [id])
@@ -523,8 +524,8 @@ model Usuarios {
   rol       Roles    @relation(fields: [rol_id], references: [id])
   rol_id    Int
   activo    Boolean  @default(true)
-  token     String   @db.Text
-  createdAt DateTime @default(now())
+  token     String?  @db.Text
+  createdAt DateTime?@default(now())
   updatedAt DateTime?@updatedAt
 
   turnos                 Turnos[]

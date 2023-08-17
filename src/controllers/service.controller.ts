@@ -1,131 +1,81 @@
 import { Request, Response } from 'express';
-import * as ServicesModel from '../models/service.model';
-import { Servicios } from '@prisma/client';
-import { ObjectDifferences, ObjectFiltering } from '../utils/filtering';
+import { PrismaClient, Servicios } from '@prisma/client';
+import { GetAllAvailableServicesInSucursal, getServiceById, getSucursalByUserId, refreshPersistentData } from '../core/global.state';
+import { createServicesType } from '../schemas/service.schema';
 
-/**
-    id: number;
-    descripcion: string;
-    nombre_corto: string;
-    prefijo: string;
-    grupo_id: number;
-    es_seleccionable: boolean;
-    estatus: boolean;
- */
-const INPUT_TYPES_SERVICIOS: string[] = ['descripcion','nombre_corto','prefijo','grupo_id','es_seleccionable'];
-const OUTPUT_TYPES_SERVICIOS: string[] = ['id','descripcion','nombre_corto','prefijo','grupo','es_seleccionable'];
+const prisma = new PrismaClient;
 
-export const GetAllServices = ((_req: Request, res: Response) => {
-    ServicesModel.GetAll().then((services => {
-       
-        const data = services.map((service) => {
-            return <Servicios> ObjectFiltering(service, OUTPUT_TYPES_SERVICIOS);
-        })
+export const GetAllServices = async (_req: Request, res: Response) => {
+    try {
+        const servicios: Servicios[] = await prisma.servicios.findMany().finally(async () => await prisma.$disconnect())
         
-        return res.json({success: true, data});
-
-    })).catch(async (error) => {
-
-        return res.status(404).json({error: error.message});
+        if (servicios.length === 0) return res.status(404).json({message: 'Clients data was not found'})
         
-    })
-})
+        return res.json({success: true, message: 'Clients data was successfully recovery', data: servicios})
 
-export const GetAllServicesByServiceGroup = ((req: Request <{id: Number}>, res: Response) => {
-    const grupo_id: number = Number(req.params.id);
-    ServicesModel.GetsBy({grupo_id}).then((services => {
-       
-        const data = services.map((service) => {
-            return <Servicios> ObjectFiltering(service, OUTPUT_TYPES_SERVICIOS);
-        })
-        
-        return res.json({success: true, data});
-
-    })).catch(async (error) => {
-
-        return res.status(404).json({error: error.message});
-        
-    })
-})
-
-/**
- * Debe buscar todos los servicios que cumplan con los siguientes criterios:
- * - Servicios.es_seleccionable = true,
- * - JOIN (Servicios_Sucursales) donde:
- * -- sucursal_id = sucursal actual
- * -- disponible = true
- */
-export const GetAllSeletableServicesByServiceGroup = (async (req: Request <{id: Number}>, res: Response) => {
-    const grupo_id: number = Number(req.params.id);
-
-    if(grupo_id === 0) 
-        return ServicesModel.GetAllInGroups({es_seleccionable: true}).then((servicesInGroups) => {
-
-           return res.json({success: true, data: servicesInGroups})
-
-        }).catch(async (error) => {
-
-           return res.status(404).json({error: error.message});
-            
-        })
-
-    return ServicesModel.GetsBy({grupo_id, es_seleccionable: true}).then((services => {
-       
-        const data = services.map((service) => {
-            return <Servicios> ObjectFiltering(service, OUTPUT_TYPES_SERVICIOS);
-        })
-        
-       return res.json({success: true, data});
-
-    })).catch(async (error) => {
-
-       return res.status(404).json({error: error.message});
-        
-    })
-})
-
-export const GetServiceById = ((_req: Request, res: Response) => {
-    res.json('Get Servicios by ID');
-})
-
-export const StoreNewService = ( async (req: Request, res: Response) => {
-    const data: Servicios | Servicios[] = req.body;
-
-    if (data instanceof Array){
-        let errors: Array<object> = []
-
-        data.forEach(service => {
-            if(ObjectDifferences(service, INPUT_TYPES_SERVICIOS).length > 0){
-                errors.push(service)
-            }
-        })
-
-        if (errors.length > 0) return res.status(400).json({message: 'Incorrect or incomplete data in request', valid: INPUT_TYPES_SERVICIOS, on: errors})
-
+    } catch (error) {
+        return res.status(500).json({message: 'Server status error getting Clients data.', data: error})
     }
-    
-    ServicesModel.Store({data}).then((newServiceOrCount) => {
-        if (newServiceOrCount instanceof Number){
-            return res.json({message: 'Services created successfully!', data: {count: newServiceOrCount}});
-        }
+}
 
-        if (newServiceOrCount instanceof Object){
-            const data = <Servicios> ObjectFiltering(newServiceOrCount, OUTPUT_TYPES_SERVICIOS);
-            return res.json({message: 'Service created successfully!', data});
-        }
 
-        return res.json({message: 'Service created successfully', data: newServiceOrCount})
+export const GetAllAvailableServices = (req: Request, res: Response) => {
+    const grupo_id = req.query.group ? Number(req.query.group) : undefined
+    const es_seleccionable = req.query.selectable ? Boolean(req.query.selectable) : undefined
+    const user_id: number = res.locals.payload.id; 
 
-    }).catch(async (error) => {
-
-        if(error.code === 'P2000')
-            return res.status(400).json({error: 'A field is too longer.', message: error.message});
+    try {
+        const sucursal = getSucursalByUserId(user_id)
+        const grupoServicios = GetAllAvailableServicesInSucursal({
+            sucursal_id: sucursal.id,
+            grupo_id,
+            es_seleccionable
+        })
         
-        return res.status(400).json({error: error.message});
-    })
+        if (grupoServicios === null) return res.status(404).json({message: `Available Servicios in Sucursal ${sucursal.descripcion} were not found`})
+        
+        return res.json({success: true, message: `Available Servicios in Sucursal ${sucursal.descripcion} were successful recovery`, data: grupoServicios})
 
-    return
-})
+    } catch (error) {
+        return res.status(500).json({message: 'Server status error getting Servicios in Sucursal.', data: error})
+    }
+}
+
+
+export const GetServiceById = (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    try {
+        const result = getServiceById(id)
+
+        if (result === null)
+            return res.status(404).json({success: false, message: `No Service was found with id: ${id}`})
+
+        return res.json({success: true, message: 'Seervice data was successfully recovery', data: result})
+
+    } catch (error) {
+        return res.status(500).json({success: false, message: 'Server status error finding Seervice data.', data: error})
+    }
+}
+
+export const StoreNewServices = async (req: Request, res: Response) => {
+    const data: createServicesType = req.body;
+
+    try {
+        const result = await prisma.$transaction(
+            data.map(entry => prisma.servicios.create({ data: entry }) )
+        )
+
+        if (result === undefined) {
+            return res.status(400).json({success: false, message: "Algunos registros de servicios no se crearon"})
+        }
+
+        refreshPersistentData()
+        return res.json({success: true, message: 'Servicio data was successfully created', data: result})
+
+    } catch (error) {
+        return res.status(500).json({message: 'Server status error creating Servicios.', data: error})
+    }
+}
 
 export const UpdateService = ((_req: Request, res: Response) => {
     return res.json('Update a Servicios');

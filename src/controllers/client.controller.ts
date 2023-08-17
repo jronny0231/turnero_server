@@ -1,78 +1,91 @@
 import { Request, Response } from 'express';
-import { GetAll, Store, GetById } from '../models/client.model';
-import { Clientes } from '@prisma/client';
-import { ObjectDifferences, ObjectFiltering } from '../utils/filtering';
+import { Clientes, PrismaClient } from '@prisma/client';
+import { ClientWithSeguro } from '../@types/agent';
 
-/**
-    id: number;
-    nombre: string;
-    apellidos: string;
-    tipo_identificacion_id: number;
-    identificacion: string;
-    seguro_id: number;
-    nombre_tutorado: string | null;
-    fecha_ultima_visita: Date | null;
-    estatus: boolean;
-    registrado_por_id: number;
-    modificado_por_id: number | null;
-    createdAt: Date;
-    updatedAt: Date;
- */
-const INPUT_TYPES_CLIENTES: string[] = ['nombre','apellidos','tipo_identificacion_id','identificacion','seguro_id','nombre_tutorado'];
-const OUTPUT_TYPES_CLIENTES: string[] = ['id','nombre','apellidos','tipo_identificacion','identificacion','seguro','nombre_tutorado','fecha_ultima_visita','estatus','registrado_por_id','createdAt'];
+const prisma = new PrismaClient();
 
-export const GetAllClients = ((_req: Request, res: Response) => {
-    GetAll().then((Clients => {
-       
-        const data = Clients.map((Clients) => {
-            return <Clientes> ObjectFiltering(Clients, OUTPUT_TYPES_CLIENTES);
-        })
+export const GetAllClients = async (_req: Request, res: Response) => {
+    try {
+        const clientes: Clientes[] = await prisma.clientes.findMany().finally(async () => await prisma.$disconnect())
         
-        res.send({success: true, data});
-
-    })).catch(async (error) => {
-
-        res.status(404).send({error: error.message});
+        if (clientes.length === 0) return res.status(404).json({message: 'Clients data was not found'})
         
-    })
-})
+        return res.json({success: true, message: 'Clients data was successfully recovery', data: clientes})
 
-
-export const GetClientsById = ((req: Request, res: Response) => {
-    const id: number = Number(req.params.id);
-    GetById(id).then((user => {
-        const data = <Clientes> ObjectFiltering(user, OUTPUT_TYPES_CLIENTES);
-
-        res.send({success: true, data});
-
-    })).catch(async (error) => {
-
-        res.status(404).send({error: error.message});
-        
-    })
-})
-
-export const StoreNewClients = ((req: Request, res: Response) => {
-    const data: Clientes = req.body;
-
-    if(ObjectDifferences(data, INPUT_TYPES_CLIENTES).length > 0){
-        return res.status(400).json({message: 'Incorrect or incomplete data in request', valid: INPUT_TYPES_CLIENTES})
+    } catch (error) {
+        return res.status(500).json({message: 'Server status error getting Clients data.', data: error})
     }
-    
-    Store(data).then((newClients) => {
-        const data = <Clientes> ObjectFiltering(newClients, OUTPUT_TYPES_CLIENTES);
+}
 
-            return res.send({message: 'Clients created successfully!', data});
-    
-    }).catch(async (error) => {
 
-        if(error.code === 'P2000')
-            return res.status(400).send({error: 'A field is too longer.', message: error.message});
+export const GetClientsById = async (req: Request, res: Response) => {
+    const id: number = Number(req.params.id);
+    try {
+        const cliente = await prisma.clientes.findFirst({
+            where: { id }
+        }).finally(async () => await prisma.$disconnect())
         
-        return res.status(400).send({error: error.message});
-    })
-    return
-})
+        if (cliente === null) return res.status(404).json({message: `Client data with id: ${id} was not found`})
+        
+        return res.json({success: true, message: `Client with id: ${id} was successfully recovery`, data: cliente})
+
+    } catch (error) {
+        return res.status(500).json({message: 'Server status error getting Clients data.', data: error})
+    }
+}
+
+type typeWith = 'SEGURO' | 'NONE'
+
+
+
+export const StoreNewClient = async (req: Request, res: Response) => {
+    const receive = req.query.with ?? false
+    const include: typeWith = receive ? String(receive).toUpperCase() as typeWith : 'NONE'
+
+    const registrado_por_id: number = res.locals.payload.id; 
+
+    try {
+        let nuevoCliente: any = {} 
+        await prisma.$connect()
+
+        if (include === 'SEGURO') {
+            const data: ClientWithSeguro = req.body
+            let seguro = await prisma.seguros.findFirst({
+                where: { NOT: { OR: [
+                        { siglas: data.seguro.siglas },
+                        { nombre_corto: data.seguro.nombre_corto },
+                        { nombre: data.seguro.nombre }
+                    ]
+                }}
+            })
+            if (seguro === null) {
+                seguro = await prisma.seguros.create({
+                    data: { ...data.seguro }
+                })
+            }
+
+            nuevoCliente = await prisma.clientes.create({
+                data: {
+                    ...data,
+                    seguro: undefined,
+                    seguro_id: seguro.id,
+                    registrado_por_id
+                }
+            })
+        } else if (include === 'NONE') {
+
+        }
+
+        if (nuevoCliente === null) return res.status(404).json({message: 'Cliente was not created'})
+
+        return res.json({success: true, message: 'Cliente data was successfully created', data: nuevoCliente})
+    } catch (error) {
+        return res.status(500).json({message: 'Server status error creating new Cliente.', data: error})
+
+    } finally {
+        await prisma.$disconnect()
+    }
+}
 
 export const UpdateClients = ((_req: Request, res: Response) => {
     res.send('Update a Clientes');

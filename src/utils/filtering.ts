@@ -1,4 +1,5 @@
 import { UUID } from "crypto";
+import bcrypt from 'bcrypt';
 
 export const ObjectFiltering = ((data: object, filters: Array<string>): object => {
   return Object.keys(data)
@@ -28,4 +29,23 @@ export const stringToUUID = (string: string): UUID | null => {
 
   return null
 
+}
+
+const PASSWORD_SALT = Number(process.env.PASSWORD_SALT) || 10;
+const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD || "1234abcd";
+
+export const encryptPassword = async (password?: string | undefined): Promise<string> => {
+  const passwordValue: string = password ?? DEFAULT_PASSWORD
+  let hashedPassword: string = passwordValue;
+
+  return bcrypt
+    .genSalt(PASSWORD_SALT)
+    .then(async salt => {
+      return bcrypt.hash(passwordValue, salt)
+    })
+    .then(hashed => hashed)
+    .catch(err => {
+      console.error(err.message)
+      return hashedPassword;
+    })
 }

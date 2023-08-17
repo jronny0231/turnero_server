@@ -1,263 +1,127 @@
 import { Request, Response } from 'express';
-import { Servicios, Servicios_dependientes, Turnos } from '@prisma/client';
-import { ObjectDifferences, ObjectFiltering } from '../utils/filtering';
-
-import * as queueModel from '../models/queue.model';
-import * as agentModel from '../models/agent.model';
-import { GetAllDependentsBySelectableId as Dependents } from '../models/service.model'; 
-import { CallStatus, DisplayQueue, PantallaTurnos, Ticket, TurnoYCliente } from '../@types/queue';
+import { PrismaClient, Turnos, turno_llamada } from '@prisma/client';
 import { UUID } from 'crypto';
+import { getAttendingQueueByUserId, addNewQueueState, getActiveQueueList, getCallQueueState, getQueuesListBySucursalId, getServiceById, setAttendingState, setCallQueueState } from '../core/global.state';
+import { getUnrelatedFirstService } from '../core/flow.manage';
+import { newQueueWithClientType, updateQueueStateType } from '../schemas/queue.schema';
 
-/*
-    id: number;
-    secuencia_ticket: string;
-    servicio_actual_id: number;
-    servicio_destino_id: number;
-    estado_turno_id: number;
-    cola_posicion: number;
-    cliente_id: number;
-    sucursal_id: number;
-    registrado_por_id: number;
-    createdAt: Date;
-    */
 
-    const calledQueue: DisplayQueue = {
-        id: 3,
-        tittle: "TURNO " + "ORO03",
-        callStatus: 'UNCALLED',
-        message: {
-            servicio: "Reriro de Orden",
-            departamento: "Optica"
-        },
-        voice: {
-            lenght: 3,
-            // url: ""
-        }
+
+const prisma = new PrismaClient();
+
+
+export const GetAllQueues = async (_req: Request, res: Response) => {
+    try {
+        const turnos = await prisma.turnos.findMany().finally(async () => await prisma.$disconnect())
+        
+        if (turnos.length === 0) return res.status(404).json({message: 'Turnos data was not found'})
+        
+        return res.json({success: true, message: 'Turnos data was successfully recovery', data: turnos})
+
+    } catch (error) {
+        return res.status(500).json({message: 'Server status error getting Turnos data.', data: error})
     }
-
-const INPUT_TYPES_TURNOS: string[] = [
-    'tipo_identificacion_id',
-    'identificacion',
-    'es_tutor',
-    'servicio_destino_id',
-    'servicio_destino',
-    'servicio_prefijo',
-    'cola_posicion',
-    'sucursal_id', ];
-
-const OUTPUT_TYPES_TURNOS: string[] = [
-    'id',
-    'secuencia_ticket',
-    'servicio_destino',
-    'servicio_actual',
-    'estado_turno',
-    'cola_posicion',
-    'cliente',
-    'createdAt',
-    'updateAt' ];
-
-export const GetAllQueues = (_req: Request, res: Response) => {
-    queueModel.GetAll().then((queues => {
-       
-        const data = queues.map((queue) => {
-            return <Servicios> ObjectFiltering(queue, OUTPUT_TYPES_TURNOS);
-        })
-        
-        res.send({success: true, data});
-
-    })).catch(async (error) => {
-
-        res.status(404).send({error: error.message});
-        
-    })
 }
 
-export const GetQueueById = (_req: Request, res: Response) => {
-    res.send('Get Turno by ID');
+export const GetQueueById = async (req: Request, res: Response) => {
+    try {
+        const id = Number(req.params.id);
+
+        const result = await prisma.turnos.findFirst({
+            where: { id}
+        }).finally( async () => await prisma.$disconnect() )
+
+        if (result === null)
+            return res.status(404).json({success: false, message: `No Turno was found with id: ${id}`})
+
+        return res.json({success: true, message: 'Turno data was successfully recovery', data: result})
+
+    } catch (error) {
+        return res.status(500).json({success: false, message: 'Server status error finding Turno data.', data: error})
+    }
 }
 
-export const setNewCallingsByDisplayId = async (_req: Request, res: Response) => {
-    const userId: number = Number(res.locals.payload.id)
-    const agent = await agentModel.GetByUserId(userId);
-    
-    if(!agent) return res.status(404).send({error: 'Agent assigned to any user, please check configuration'});
-    
-
-
-    return res.send({success: true, display: userId, data: {}})
-}
-
-/**
- * Returns one calling queue at time to request display by sucursal
- * @param _req 
- * @param res 
- * @returns response json object as DisplayQueue type
- */
 export const getNewCallingsByDisplayId = (_req: Request, res: Response) => {
     const key: UUID = res.locals.display
     
-    return res.send({success: true, display: key, data: calledQueue})
-    
+    const data = getCallQueueState({displayUUID: key})
+
+    if (data === null) {
+        return res.status(404).json({success: false, message: 'No Turnos pending to call found', data})    
+    }
+    return res.json({success: true, message: 'Turno calling data successfully getted ', data})
 }
 
 export const updateCallingsByDisplayId = (req: Request, res: Response) => {
-    const key: UUID = res.locals.display
-    const data: {status: CallStatus
-    } = req.body;
-    const queueId: number = Number(req.params.id);
+    const displayUUID: UUID = res.locals.display
+    const {estatus}: {estatus: turno_llamada } = req.body;
+    const state_id = Number(req.params.id);
 
-    calledQueue.callStatus = data.status
+    const result = setCallQueueState({state_id, displayUUID, estatus})
 
-    console.log({calledQueue, queueId, data})
-
-    return res.send({success: true, display: key})
+    return res.json({success: true, data: result})
 }
 
-
-/**
- * Function to get a list of queues that are currently open for processing
- * @param _req
- * @param _res
- * @returns {Promise<{}>}
- */
-export const getActiveQueuesByDisplayId = async (_req: Request, res: Response): Promise<{}> => {
+export const getActiveQueuesByDisplayId = (_req: Request, res: Response) => {
     
-    const key: UUID = res.locals.display
+    try {
+        const displayUUID: UUID = res.locals.display
+        const turnos = getActiveQueueList({displayUUID})
 
-    const nowTimestamp: Date = new Date(Date.now()); // Otiene la fecha actual
-    const nowDate: Date = new Date(nowTimestamp.getFullYear(), nowTimestamp.getMonth(), nowTimestamp.getDate())
-    const dateFiltering = {
-        lte: nowDate,
-        gte: nowDate,
-    }
-    
-    const queues: PantallaTurnos[] = await queueModel.GetsByWithDisplayKey({
-        key,
-        where: {fecha_turno: dateFiltering},
-        match:{param: 'estado_turno', field:'descripcion', values: ['ESPERANDO','ATENDIENDO','EN_ESPERA']}
-    });
+        if (turnos === null)
+            return res.status(404).json({success: false, message: 'No active Turnos to display', data: turnos}) 
 
-    let data: object[] = [{
-        id: 1,
-        secuencia_ticket: "CPV01",
-        servicio_destino: "Consulta Post Quirurgica",
-        agente: "Dr. Escaño ",
-        destino: "Consultorio 1",
-    },
-    {
-        id: 2,
-        secuencia_ticket: "CPV02",
-        servicio_destino: "Consulta Oftalmologica",
-        agente: "Dr. Escaño",
-        destino: "Consultorio 1",
-    },
-    {
-        id: 3,
-        secuencia_ticket: "CPV03",
-        servicio_destino: "Consulta Oftalmologica",
-        agente: "Dr. Escaño",
-        destino: "Consultorio 1",
-    },
-    {
-        id: 4,
-        secuencia_ticket: "CPV04",
-        servicio_destino: "Consulta Oftalmologica",
-        agente: "Dr. Escaño",
-        destino: "Consultorio 1",
-    },
-    {
-        id: 5,
-        secuencia_ticket: "CPV05",
-        servicio_destino: "Consulta Oftalmologica",
-        agente: "Dr. Escaño",
-        destino: "Consultorio 1",
-    },
-    {
-        id: 6,
-        secuencia_ticket: "CSE01",
-        servicio_destino: "Consulta de Seguimiento",
-        agente: "Dr. Escaño",
-        destino: "Consultorio 1",
-    },
-    {
-        id: 7,
-        secuencia_ticket: "CPV06",
-        servicio_destino: "Consulta Oftalmologica",
-        agente: "Dr. Escaño",
-        destino: "Consultorio 1",
-    },
-    {
-        id: 8,
-        secuencia_ticket: "CPV07",
-        servicio_destino: "Consulta Oftalmologica",
-        agente: "Dr. Escaño",
-        destino: "Consultorio 1",
-    },
-    {
-        id: 9,
-        secuencia_ticket: "CSE02",
-        servicio_destino: "Consulta de Seguimiento",
-        agente: "Dr. Escaño",
-        destino: "Consultorio 1",
-    },
-    {
-        id: 10,
-        secuencia_ticket: "CSE03",
-        servicio_destino: "Consulta de Seguimiento",
-        agente: "Dr. Escaño",
-        destino: "Consultorio 1",
-    }]
-    if (queues.length > 0) {
-        data = queues.map((queue) => {
+        const data = turnos.map((turno) => {
             return {
-                id: queue.id,
-                secuencia_ticket: queue.secuencia_ticket,
-                servicio_destino: queue.servicio_destino?.descripcion,
-                agente: queue.atenciones_turnos_servicios[0]?.agente?.nombre ?? "",
-                destino: queue.atenciones_turnos_servicios[0]?.agente?.departamento_sucursal?.departamento?.descripcion ?? ""
+                id: turno.id,
+                secuencia_ticket: turno.secuencia_ticket,
+                servicio_destino: turno.activo.servicio_name,
+                agente: turno.activo.agente_name,
+                destino: turno.activo.servicio_name
             }
         })
+
+        const columns = [
+            {
+                name: "secuencia_ticket",
+                label: "TURNO",
+                widthPercent: 0.2,
+                isBold: true,
+            },{
+                name: "agente",
+                label: "AGENTE",
+                widthPercent: 0.3,
+                isBold: false,
+            },{
+                name: "servicio_destino",
+                label: "SERVICIO",
+                widthPercent: 0.5,
+                isBold: false,
+            }
+        ]
+        return res.json({success: true, data: {columns, data}});
+
+    } catch (error) {
+        return res.status(500).json({success: false, message: 'Server status error finding active Turnos.', data: error})
     }
-    const columns = [
-        {
-            name: "secuencia_ticket",
-            label: "TURNO",
-            widthPercent: 0.2,
-            isBold: true,
-        },{
-            name: "agente",
-            label: "AGENTE",
-            widthPercent: 0.3,
-            isBold: false,
-        },{
-            name: "servicio_destino",
-            label: "SERVICIO",
-            widthPercent: 0.5,
-            isBold: false,
-        }
-    ]
-    return res.send({success: true, data: {columns, data}});
 }
 
-export const getActiveQueuesByClientId = async (req: Request, res: Response): Promise<{}> => {
+export const getActiveQueuesByClientId = async (req: Request, res: Response) => {
     const cliente_id = Number(req.params.id)
 
-    const queues: Turnos[] = await queueModel.GetsByWithDepartamento(
-            {cliente_id},
-            {param: 'estado_turno', field:'descripcion', values: ['ESPERANDO','ATENDIENDO','EN_ESPERA']}
-    );
+    try {
+        const turnos = await prisma.turnos.findMany({
+            where: { cliente_id }
+        }).finally( async () => await prisma.$disconnect() )
 
-    if(queues.length === 0) {
-        return res.status(404).send({error: 'No se encontraron turnos activos'});
+        if (turnos === null) 
+            return res.status(404).json({success: false, message: 'No active Turnos to display', data: null}) 
+
+        return res.json({success: true, message: `Turnos by cliente_id: ${cliente_id} successfully getted`, data: turnos})
+
+    } catch (error) {
+        return res.status(500).json({success: false, message: `Server status error finding all Turnos by cliente_id: ${cliente_id}`, data: error})
     }
-
-    const data = queues.map((queue) => {
-        return <Turnos> ObjectFiltering( queue, [
-            'id', 'secuencia_ticket', 'servicio_destino', 'departamento', 'estado_turno'
-        ]);
-    })
-    
-    return res.send({success: true, data});
 }
 
 /**
@@ -265,90 +129,198 @@ export const getActiveQueuesByClientId = async (req: Request, res: Response): Pr
  * incluyendo los datos por defecto del cliente nuevo o enlazando si existe
  * procesando todos los datos por los parametros automaticos
  */
-export const StoreNewQueue = async (req: Request, res: Response) => {
-    const reqData: any = req.body;
-
-    if(ObjectDifferences(reqData, INPUT_TYPES_TURNOS).length > 0){
-        return res.status(400).json({message: 'Incorrect or incomplete data in request', received: reqData, valid: INPUT_TYPES_TURNOS})
-    }
+export const StoreNewQueue = (req: Request, res: Response) => {
+    const body: newQueueWithClientType = req.body;
 
     /**  Syncronous operations, perform response waiting for  **/
+    try {
+        
+        const nowTimestamp: Date = new Date(Date.now()); // Otiene la fecha actual
+        //const nowDate: Date = new Date(nowTimestamp.getFullYear(), nowTimestamp.getMonth(), nowTimestamp.getDate())
 
-    const defaultTutorado: string = 'sin definir' // Nombre del tutorado predefinido cuando es valido
-    const defaultNextService: number = 17 // id del siguiente servicio por default (Registro)
-    
-    const nowTimestamp: Date = new Date(Date.now()); // Otiene la fecha actual
-    const nowDate: Date = new Date(nowTimestamp.getFullYear(), nowTimestamp.getMonth(), nowTimestamp.getDate())
+        // Obtiene el id del usuario logeado que emitio el turno
+        const registrado_por_id: number = res.locals.payload.id; 
+        
+        // Cantidad de ceros en la secuencia del ticket
+        const cantPosMark: number = 2; 
 
-    const userId: number = res.locals.payload.id; // Obtiene el id del usuario logeado que emitio el turno
-    const officeId: number = reqData.sucursal_id;     // Otiene la sucursal a la que pertenece el agente del usuario logueado
-    const queueStateId: number = 1; // Obtiene el estado de turno predeterminado para el nuevo turno
-    
-    // Setea el codigo de Ticket para el nuevo turno
-    const cantPosMark: number = 2; // Cantidad de ceros en la secuencia del ticket
-    const queueSecuency: string = reqData.servicio_prefijo + ('0' + reqData.cola_posicion).slice(cantPosMark * -1);
+        const servicio_destino = getServiceById(body.servicio_destino_id)
+        if (servicio_destino === null) return res.status(404).json({success:false, message: 'Could not found servicio requested to turno'})
 
-    const queueData: TurnoYCliente = {
-        secuencia_ticket: queueSecuency,
-        servicio_actual_id: defaultNextService,
-        servicio_destino_id: Number(reqData.servicio_destino_id),
-        estado_turno_id: queueStateId,
-        cola_posicion:  Number(reqData.cola_posicion),
-        registrado_por_id: userId,
-        sucursal_id: officeId,
-        fecha_turno: nowDate,
-        cliente: {
-            tipo_identificacion_id: Number(reqData.tipo_identificacion_id),
-            identificacion: reqData.identificacion,
-            nombre_tutorado: reqData.es_tutor ? defaultTutorado : null,
-            registrado_por_id: userId,
+        const cola_posicion = getQueuesListBySucursalId(body.sucursal_id).length + 1
+        
+        const secuencia_ticket: string = servicio_destino.prefijo + ('0' + cola_posicion).slice(cantPosMark * -1);
+
+        const response = {
+            secuencia_ticket,
+            servicio_destino: servicio_destino.descripcion,
+            createdAt: nowTimestamp.toLocaleString()
         }
+
+        new Promise( async (resolve, reject) => {
+            try {
+                await prisma.$connect()
+
+                const cliente = async () => {
+                    const clienteFound = await prisma.clientes.findFirst({
+                        where: {  identificacion: body.cliente.identificacion  }
+                    })
+                    if (clienteFound) return clienteFound
+
+                    return await prisma.clientes.create({
+                        data: {
+                            ...body.cliente,
+                            registrado_por_id,
+                            nombre_tutorado: (body.cliente.es_tutor ? 'sin_definir' : undefined)
+                        }
+                    })
+                }
+
+                const servicio_actual_id = await getUnrelatedFirstService({
+                    seguro_id: (await cliente()).seguro_id ?? 0,
+                    sucursal_id: body.sucursal_id,
+                    servicio_destino_id: servicio_destino.id
+                })
+
+                const turno = await prisma.turnos.create({
+                    data: {
+                        secuencia_ticket,
+                        cliente_id: (await cliente()).id,
+                        servicio_actual_id,
+                        servicio_destino_id: servicio_destino.id,
+                        cola_posicion,
+                        registrado_por_id,
+                        sucursal_id: body.sucursal_id,
+                        fecha_turno: nowTimestamp.toLocaleDateString()
+                    }
+                })
+
+                addNewQueueState({turno})
+
+                resolve(turno)
+
+            } catch (error: any) {
+                console.error("Error when create new Turno in Promise clousure", {error})
+                
+                if(error.code === 'P2000')
+                console.error({success: false, error: 'A field is too longer.', message: error.message});
+                
+                return reject(error)
+            }
+
+        }).then(console.log)
+        .finally( async () => await prisma.$disconnect())
+
+        return res.json({success: true, message:"Turno was created successfully!", data: response})
+
+    } catch (error) {
+        console.error(`Error trying to create a new turno sync on ${Date.now().toLocaleString()}`, {error})
+        return res.status(500).json({success: false, message: `Error trying to create a new turno sync on ${Date.now().toLocaleString()}`, data: error})
+    }
+}
+
+export const GetToAttendQueue = ( res: Response) => {
+    const usuario_id: number = res.locals.payload.id;
+
+    try {
+        const turno = getAttendingQueueByUserId({usuario_id})
+
+        if (turno === null)
+            return res.status(404).json({success: false, message: 'No active Turnos to display', data: null}) 
+
+        return res.json({success: true, message: 'Active Turno was found', data: turno})
+
+    } catch (error) {
+        console.error(`Error trying to get current attending Turno with user_id: ${usuario_id}`, {error})
+        return res.status(500).json({success: false, message: `Error trying to get current attending Turno with user_id: ${usuario_id}`, data: error})
     }
 
-    try{
-        const newQueue: Turnos = await queueModel.StoreWithClient(queueData)
-        
-        /**  Asyncronous operations, perform background  **/
+}
 
-        new Promise(async (resolve, reject) => {
-            // Asyncronous operations...
-
-            // Obtiene el id del servicio siguiente con la prioridad mas alta en la tabla 'servicios_dependientes' (casos generales: Registro)
-            const nextService: Servicios_dependientes = (await Dependents(reqData.servicio_destino_id))[0]
-            const servicio_destino_id: number = nextService ? nextService.servicio_dependiente_id : 17 // 17 Servicio: Registro
-            
-            const result: Turnos|null = await queueModel.Update(newQueue.id, {servicio_destino_id})
-                        .catch((err: any) => {
-                            reject(err)
-                            return null
-                        })
-
-            resolve(result)
-            
-        })
-
-        const data: Ticket = {
-            id: newQueue.id,
-            sucursal: reqData.sucursal,
-            secuencia_ticket: queueSecuency,
-            servicio_destino: reqData.servicio_destino,
-            createdAt: newQueue.createdAt ?? nowTimestamp,
-        };
-
-        return res.json({message: 'Queue created successfully!', data});
+export const UpdateStateQueue = async (req: Request, res: Response) => {
+    const body: updateQueueStateType['body'] = req.body;
+    const {id: turno_id} = req.params as unknown as updateQueueStateType['params']
     
-    } catch(error: any){
-        if(error.code === 'P2000')
-            return res.status(400).send({error: 'A field is too longer.', message: error.message});
+    try {
+        if (body.servicio_id === undefined || body.agente_id === undefined || body.estado_turno_id === undefined){
+            return res.status(404).json({success: false, message: "Data receive is incomplet or bad formed"})
+        }
+
+        const isUpdate = await setAttendingState({...body, turno_id})
+
+        if (isUpdate) return res.json({success: true, message:"Turno status was updated successfully!", data: isUpdate})
+
+        return res.status(404).json({success: false, message:"Turno status could not updated", data: isUpdate})
         
-        return res.status(400).send({error: error.message});
+    } catch (error) {
+        console.error(`Error trying update Status Turno id: ${turno_id} with status_turno_id: ${body.estado_turno_id}`, {error}) 
+
+        return res.status(500).json({success: false, message: `Error trying update Status Turno id: ${turno_id} with status_turno_id: ${body.estado_turno_id}`, data: error})
     }
 }
 
-export const UpdateQueue = (_req: Request, res: Response) => {
-    res.send('Update a Turno');
+export const UpdateQueue = async (req: Request, res: Response) => {
+    const body: Partial<Turnos> = req.body;
+    const id = Number(req.params.id)
+
+    try {
+        await prisma.$connect()
+
+        const result = await prisma.turnos.update({
+            where: { id },
+            data: {
+                ...body
+            }
+        }). finally( async () => await prisma.$disconnect())
+
+        return res.json({success: true, message:"Turno was update successfully!", data: result})
+        
+    } catch (error: any) {
+        console.error(`Error trying update Turno id: ${id}`, {error}) 
+        if(error.code === 'P2000')
+            return res.status(400).json({success: false, error: 'A field is too longer.', message: error.message});
+
+        return res.status(500).json({success: false, message: `Error trying update Turno id: ${id}`, data: error})
+    }
 }
 
-export const DeleteQueue = (_req: Request, res: Response) => {
-    res.send('Delete a Turno');
+export const DeleteQueue = async (req: Request, res: Response) => {
+    const id = Number(req.params.id)
+
+    try {
+        const result = await prisma.turnos.delete({
+            where: { id }
+        }).finally( async () => await prisma.$disconnect())
+
+        return res.json({success: true, message:"Turno was update successfully!", data: result})
+
+    } catch (error) {
+        console.error(`Error trying delete Turno id: ${id}`, {error}) 
+        return res.status(404).json({success: false, message: `Error trying delete Turno id: ${id}`, data: error});
+    }
+
 }
+
+/*
+const validateNewTurno = (data: NuevoTurnoType) => {
+    return z.object({
+        servicio_destino_id: z.number().gte(1).lte(23),
+        sucursal_id: z.number().gte(1).lte(3),
+        cliente: z.object({
+            tipo_identificacion_id: z.number().gte(1).lte(3),
+            identificacion: z.string()
+            .min(
+                data.cliente.tipo_identificacion_id === 1 ? 11
+                : data.cliente.tipo_identificacion_id === 2 ? 9
+                    : data.cliente.tipo_identificacion_id === 3 ? 10 : 0)
+            .max(
+                data.cliente.tipo_identificacion_id === 1 ? 13
+                : data.cliente.tipo_identificacion_id === 2 ? 11
+                    : data.cliente.tipo_identificacion_id === 3 ? 20 : 0
+            ),
+            seguro_id: z.number().gte(1).lte(2),
+            es_tutor: z.boolean(),
+        })
+    }).parse(data)
+}
+*/

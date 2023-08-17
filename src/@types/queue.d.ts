@@ -38,8 +38,6 @@ export interface PantallaTurnos extends Partial<Turnos> {
     } []
 }
 
-export type CallStatus = 'UNCALLED' | 'CALLING' | 'CALLED'
-
 export type DisplayQueue = {
     id: number,
     tittle: string,
@@ -53,3 +51,11 @@ export type DisplayQueue = {
         lenght?: number
     }
 };
+
+export type attendingState = {
+    agente_id: number,
+    servicio_id: number,
+    turno_id: number,
+    estado_turno_id: number,
+    razon_cancelado_id?: number
+}

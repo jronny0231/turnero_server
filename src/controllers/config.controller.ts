@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 
-export const GetConfig = (req: Request, res: Response) => {
+export const GetConfig = async (req: Request, res: Response) => {
     const userId: number = Number(res.locals.payload.id)
     const queryParams: object = req.query;
 
@@ -21,5 +21,5 @@ export const GetConfig = (req: Request, res: Response) => {
     */
 
     // Testing controller
-    res.send({success: true, queryParams, userId});
+    res.json({success: true, queryParams, userId});
 }

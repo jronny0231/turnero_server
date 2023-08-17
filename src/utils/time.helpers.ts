@@ -7,7 +7,7 @@ export const prismaTodayFilter = () => {
     const last: string = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59).toString()
     
     return  {
-        lte: last,
         gte: first,
+        lte: last,
     }
 }
