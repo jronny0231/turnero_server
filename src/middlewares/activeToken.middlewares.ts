@@ -1,40 +1,62 @@
-import { NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { getSecret } from '../services/jwt.helper';
+import { payloadType } from '../@types/auth';
 
 const TOKEN_SECRET: string = getSecret()
 
-export const authToken = ((req: any, res: any, next: NextFunction) => {
+export const authToken = (req: Request, res: Response, next: NextFunction) => {
   // Request and check bearer token from header
   const authHeader = req.get('authorization');
 
-  if (authHeader === undefined) return res.status(403).json({message: 'bearer token forbidden'});
+  if (authHeader === undefined) {
+    return res.status(403).json({success: false, message: 'bearer token forbidden'})
+  }
   
-  const tokenType = authHeader.split(' ')[0];
-  const token = authHeader.split(' ')[1];
+  const [tokenType, token] = authHeader.split(' ');
 
-  if (tokenType !== 'Bearer' || token == null) return res.status(403).json({message: 'bearer token invalid'});
+  if (tokenType !== 'Bearer' || typeof token !== 'string') {
+    return res.status(403).json({success: false, message: 'bearer token invalid'})
+  }
   
   // Verify token (iss, lifetime, structure) from jwt
-  jwt.verify(token, TOKEN_SECRET as string, async (err: any, payload: any) => {
+  return jwt.verify(token, TOKEN_SECRET as string, (err: any, decode: any ) => {
     
     // If error return it
     if (err){
-      return res.status(403).json({message: err.message});
+      return res.status(403).json({success:false, message: err.message});
     }
 
-    // Verify if user data in token is super user offline account
-    if(payload.data.type === "super"){
-      res.locals.payload = payload.data;
-      next()
-      return
-    }
+    const payload: payloadType = decode.data;
 
-    // Set response local variables with verify user data payload 
-    res.locals.payload = payload.data;
-    res.locals.payload.token = token;
+    res.locals.payload = payload;
+    res.locals.token = token;
 
-    next()
+    return next()
   })
-});
+}
+
+export const urlToken = (req: Request, res: Response, next: NextFunction) => {
+  const { token } = req.query
+
+  if (typeof token !== 'string') {
+    return res.status(403).json({success: false, message: 'bearer token invalid'})
+  }
+  
+  // Verify token (iss, lifetime, structure) from jwt
+  return jwt.verify(token, TOKEN_SECRET as string, (err: any, decode: any ) => {
+    
+    // If error return it
+    if (err){
+      return res.status(403).json({success:false, message: err.message});
+    }
+
+    const payload: payloadType = decode.data;
+
+    res.locals.payload = payload;
+    res.locals.token = token;
+
+    return next()
+  })
+}
   

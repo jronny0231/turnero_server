@@ -1,6 +1,6 @@
 import express from 'express';
 import { authToken } from '../middlewares/activeToken.middlewares';
-import { verifyActiveUserToken } from '../middlewares/activeUser.middlewares';
+import { validateActiveUser } from '../middlewares/activeUser.middlewares';
 import * as controller from '../controllers/queue.controller';
 import { getDisplayProps } from '../middlewares/smartTV.middlewares';
 import { middlewaresType } from '../@types/global';
@@ -9,7 +9,7 @@ import { createQueueWithClient, updateQueueState } from '../schemas/queue.schema
 
 const router = express.Router()
 
-const middlewares: middlewaresType = [authToken, verifyActiveUserToken];
+const middlewares: middlewaresType = [authToken, validateActiveUser];
 
 
 /**
@@ -19,7 +19,7 @@ const middlewares: middlewaresType = [authToken, verifyActiveUserToken];
  * con los siguientes campos: {id, secuencia, servicio_destino, departamento, estado}
  */
 router.get('/display/', getDisplayProps, controller.getActiveQueuesByDisplayId);
-router.get('/display/calling', getDisplayProps, controller.getNewCallingsByDisplayId);
+router.get('/display/calling/', getDisplayProps, controller.getNewCallingsByDisplayId);
 router.post('/display/calling/:id', getDisplayProps, controller.updateCallingsByDisplayId);
 
 router.get('/active/', middlewares, controller.GetToAttendQueue);

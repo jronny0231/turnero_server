@@ -1,27 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -32,83 +9,70 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeleteService = exports.UpdateService = exports.StoreNewService = exports.GetServiceById = exports.GetAllSeletableServicesByServiceGroup = exports.GetAllServicesByServiceGroup = exports.GetAllServices = void 0;
-const ServicesModel = __importStar(require("../models/service.model"));
-const filtering_1 = require("../utils/filtering");
-/**
-    id: number;
-    descripcion: string;
-    nombre_corto: string;
-    prefijo: string;
-    grupo_id: number;
-    es_seleccionable: boolean;
-    estatus: boolean;
- */
-const INPUT_TYPES_SERVICIOS = ['descripcion', 'nombre_corto', 'prefijo', 'grupo_id', 'es_seleccionable'];
-const OUTPUT_TYPES_SERVICIOS = ['id', 'descripcion', 'nombre_corto', 'prefijo', 'grupo', 'es_seleccionable'];
-exports.GetAllServices = ((_req, res) => {
-    ServicesModel.GetAll().then((services => {
-        const data = services.map((service) => {
-            return (0, filtering_1.ObjectFiltering)(service, OUTPUT_TYPES_SERVICIOS);
-        });
-        return res.json({ success: true, data });
-    })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-        return res.status(404).json({ error: error.message });
-    }));
-});
-exports.GetAllServicesByServiceGroup = ((req, res) => {
-    const grupo_id = Number(req.params.id);
-    ServicesModel.GetsBy({ grupo_id }).then((services => {
-        const data = services.map((service) => {
-            return (0, filtering_1.ObjectFiltering)(service, OUTPUT_TYPES_SERVICIOS);
-        });
-        return res.json({ success: true, data });
-    })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-        return res.status(404).json({ error: error.message });
-    }));
-});
-/**
- * Debe buscar todos los servicios que cumplan con los siguientes criterios:
- * - Servicios.es_seleccionable = true,
- * - JOIN (Servicios_Sucursales) donde:
- * -- sucursal_id = sucursal actual
- * -- disponible = true
- */
-exports.GetAllSeletableServicesByServiceGroup = ((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const grupo_id = Number(req.params.id);
-    if (grupo_id === 0)
-        return ServicesModel.GetAllInGroups({ es_seleccionable: true }).then((servicesInGroups) => {
-            return res.json({ success: true, data: servicesInGroups });
-        }).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-            return res.status(404).json({ error: error.message });
-        }));
-    return ServicesModel.GetsBy({ grupo_id, es_seleccionable: true }).then((services => {
-        const data = services.map((service) => {
-            return (0, filtering_1.ObjectFiltering)(service, OUTPUT_TYPES_SERVICIOS);
-        });
-        return res.json({ success: true, data });
-    })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-        return res.status(404).json({ error: error.message });
-    }));
-}));
-exports.GetServiceById = ((_req, res) => {
-    res.json('Get Servicios by ID');
-});
-exports.StoreNewService = ((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const data = req.body;
-    if ((0, filtering_1.ObjectDifferences)(data, INPUT_TYPES_SERVICIOS).length > 0) {
-        return res.status(400).json({ message: 'Incorrect or incomplete data in request', valid: INPUT_TYPES_SERVICIOS });
+exports.DeleteService = exports.UpdateService = exports.StoreNewServices = exports.GetServiceById = exports.GetAllAvailableServices = exports.GetAllServices = void 0;
+const client_1 = require("@prisma/client");
+const global_state_1 = require("../core/global.state");
+const prisma = new client_1.PrismaClient;
+const GetAllServices = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const servicios = yield prisma.servicios.findMany().finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
+        if (servicios.length === 0)
+            return res.status(404).json({ message: 'Clients data was not found' });
+        return res.json({ success: true, message: 'Clients data was successfully recovery', data: servicios });
     }
-    ServicesModel.Store(data).then((newService) => {
-        const data = (0, filtering_1.ObjectFiltering)(newService, OUTPUT_TYPES_SERVICIOS);
-        return res.json({ message: 'Service created successfully!', data });
-    }).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-        if (error.code === 'P2000')
-            return res.status(400).json({ error: 'A field is too longer.', message: error.message });
-        return res.status(400).json({ error: error.message });
-    }));
-    return;
-}));
+    catch (error) {
+        return res.status(500).json({ message: 'Server status error getting Clients data.', data: error });
+    }
+});
+exports.GetAllServices = GetAllServices;
+const GetAllAvailableServices = (req, res) => {
+    const grupo_id = req.query.group ? Number(req.query.group) : undefined;
+    const es_seleccionable = req.query.selectable ? Boolean(req.query.selectable) : undefined;
+    const user_id = res.locals.payload.id;
+    try {
+        const sucursal = (0, global_state_1.getSucursalByUserId)(user_id);
+        const grupoServicios = (0, global_state_1.GetAllAvailableServicesInSucursal)({
+            sucursal_id: sucursal.id,
+            grupo_id,
+            es_seleccionable
+        });
+        if (grupoServicios === null)
+            return res.status(404).json({ message: `Available Servicios in Sucursal ${sucursal.descripcion} were not found` });
+        return res.json({ success: true, message: `Available Servicios in Sucursal ${sucursal.descripcion} were successful recovery`, data: grupoServicios });
+    }
+    catch (error) {
+        return res.status(500).json({ message: 'Server status error getting Servicios in Sucursal.', data: error });
+    }
+};
+exports.GetAllAvailableServices = GetAllAvailableServices;
+const GetServiceById = (req, res) => {
+    const id = Number(req.params.id);
+    try {
+        const result = (0, global_state_1.getServiceById)(id);
+        if (result === null)
+            return res.status(404).json({ success: false, message: `No Service was found with id: ${id}` });
+        return res.json({ success: true, message: 'Seervice data was successfully recovery', data: result });
+    }
+    catch (error) {
+        return res.status(500).json({ success: false, message: 'Server status error finding Seervice data.', data: error });
+    }
+};
+exports.GetServiceById = GetServiceById;
+const StoreNewServices = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const data = req.body;
+    try {
+        const result = yield prisma.$transaction(data.map(entry => prisma.servicios.create({ data: entry })));
+        if (result === undefined) {
+            return res.status(400).json({ success: false, message: "Algunos registros de servicios no se crearon" });
+        }
+        (0, global_state_1.refreshPersistentData)();
+        return res.json({ success: true, message: 'Servicio data was successfully created', data: result });
+    }
+    catch (error) {
+        return res.status(500).json({ message: 'Server status error creating Servicios.', data: error });
+    }
+});
+exports.StoreNewServices = StoreNewServices;
 exports.UpdateService = ((_req, res) => {
     return res.json('Update a Servicios');
 });

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient, Turnos, turno_llamada } from '@prisma/client';
 import { UUID } from 'crypto';
-import { getAttendingQueueByUserId, addNewQueueState, getActiveQueueList, getCallQueueState, getQueuesListBySucursalId, getServiceById, setAttendingState, setCallQueueState } from '../core/global.state';
+import { getAttendingQueueByUserId, addNewQueueState, getActiveQueueList, getCallQueueState, getQueuesListByService, getServiceById, setAttendingState, setCallQueueState } from '../core/global.state';
 import { getUnrelatedFirstService } from '../core/flow.manage';
 import { newQueueWithClientType, updateQueueStateType } from '../schemas/queue.schema';
 
@@ -75,9 +75,9 @@ export const getActiveQueuesByDisplayId = (_req: Request, res: Response) => {
             return {
                 id: turno.id,
                 secuencia_ticket: turno.secuencia_ticket,
-                servicio_destino: turno.activo.servicio_name,
-                agente: turno.activo.agente_name,
-                destino: turno.activo.servicio_name
+                servicio: turno.activo.servicio.descripcion,
+                agente: turno.activo.agente.nombre,
+                destino: turno.activo.departamento.descripcion
             }
         })
 
@@ -147,9 +147,12 @@ export const StoreNewQueue = (req: Request, res: Response) => {
         const servicio_destino = getServiceById(body.servicio_destino_id)
         if (servicio_destino === null) return res.status(404).json({success:false, message: 'Could not found servicio requested to turno'})
 
-        const cola_posicion = getQueuesListBySucursalId(body.sucursal_id).length + 1
+        const secuencia = getQueuesListByService({
+            servicio_destino_id: servicio_destino.id,
+            sucursal_id: body.sucursal_id
+        }).length + 1
         
-        const secuencia_ticket: string = servicio_destino.prefijo + ('0' + cola_posicion).slice(cantPosMark * -1);
+        const secuencia_ticket: string = servicio_destino.prefijo + ('0' + secuencia).slice(cantPosMark * -1);
 
         const response = {
             secuencia_ticket,
@@ -181,6 +184,11 @@ export const StoreNewQueue = (req: Request, res: Response) => {
                     sucursal_id: body.sucursal_id,
                     servicio_destino_id: servicio_destino.id
                 })
+
+                const cola_posicion = getQueuesListByService({
+                    servicio_actual_id: servicio_actual_id,
+                    sucursal_id: body.sucursal_id
+                }).length + 1
 
                 const turno = await prisma.turnos.create({
                     data: {

@@ -1,29 +1,29 @@
-import express, {Request, Response} from 'express';
+import express from 'express';
 import * as Auth from '../providers/auth.provider';
-import * as User from '../controllers/user.controller'
-import { authToken } from '../middlewares/activeToken.middlewares';
-import { verifyActiveUserToken } from '../middlewares/activeUser.middlewares';
-import { refreshToken } from '../services/jwt.helper';
+import { authToken, urlToken } from '../middlewares/activeToken.middlewares';
+import { validateActiveUser } from '../middlewares/activeUser.middlewares';
 import { middlewaresType } from '../@types/global';
 import validateWith from "../middlewares/validation.middlewares"
 import { passwordChange, updateUser, userCredential } from '../schemas/user.schema';
 
 const router = express.Router()
 
-const middlewares: middlewaresType = [authToken, verifyActiveUserToken];
+const middlewares: middlewaresType = [authToken, validateActiveUser];
 
 
-router.post('/login', validateWith(userCredential), Auth.Login);
+router.post('/login/', validateWith(userCredential), Auth.Login);
 
-router.get('/refreshToken', middlewares, refreshToken);
+router.get('/refreshToken/', middlewares, Auth.RefreshToken);
 
-router.delete('/logout', middlewares, Auth.Logout);
+router.delete('/logout/', middlewares, Auth.Logout);
 
-router.get('/profile', middlewares, Auth.GetAccount);
+router.get('/profile/', middlewares, Auth.GetAccount);
 
-router.put('/profile', middlewares, validateWith(updateUser), Auth.UpdateAccount)
+router.put('/profile/', middlewares, validateWith(updateUser), Auth.UpdateAccount)
 
-router.put('/update-password/', middlewares, validateWith(passwordChange), Auth.UpdatePassword)
+router.put('/update-password/', middlewares, urlToken, validateWith(passwordChange), Auth.UpdatePassword)
+
+// router.get('/reset-password', Auth.ConfirmPasswordForm)
 
 router.put('/reset-password/:id', middlewares, Auth.ResetPassword);
 

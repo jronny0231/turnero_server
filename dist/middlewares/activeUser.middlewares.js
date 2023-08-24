@@ -9,29 +9,89 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyActiveUserToken = void 0;
-const user_controller_1 = require("../controllers/user.controller");
-const verifyActiveUserToken = (_req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    const token = res.locals.payload.token;
-    const id = res.locals.payload.id;
-    // Verify if user data in token is super user offline account
-    if (res.locals.payload.type === "super") {
-        next();
-        return;
+exports.validateActiveUser = void 0;
+const client_1 = require("@prisma/client");
+const prisma = new client_1.PrismaClient();
+const verbConversion = {
+    GET: "read",
+    POST: "create",
+    PUT: "update",
+    DELETE: "delete",
+};
+const validateActiveUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    const token = (_a = res.locals.token) !== null && _a !== void 0 ? _a : null;
+    const payload = (_b = res.locals.payload) !== null && _b !== void 0 ? _b : null;
+    // Verify is token is valid
+    if (token === null || payload === null) {
+        return res.status(403).json({ success: false, message: "Token forbidden!" });
     }
-    // Verify if online user account has same token stored.
+    // Valid if user data in token is super user offline account and return next to continue
+    if (payload.type === 'SUPER') {
+        return next();
+    }
+    // Verify asynchronously if online user account has same token stored.
     try {
-        const loggedToken = yield (0, user_controller_1.getTokenById)(id);
-        if (!loggedToken || (loggedToken !== token)) {
-            (0, user_controller_1.setTokenById)(id, "");
-            res.locals.payloay = null;
-            return res.status(403).json({ message: "invalid session token, user logged out." });
+        yield prisma.$connect();
+        const userAndPermissions = yield prisma.usuarios.findFirst({
+            where: { id: payload.id },
+            include: {
+                rol: {
+                    include: {
+                        roles_permisos: {
+                            include: {
+                                permiso: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        if (userAndPermissions === null) {
+            res.locals.token = null;
+            res.locals.payload = null;
+            return res.status(404).json({ success: false, message: "User logged not found!" });
         }
+        if (userAndPermissions.activo === false) {
+            res.locals.token = null;
+            res.locals.payload = null;
+            return res.status(400).json({ success: false, message: "User logged not active!" });
+        }
+        if (userAndPermissions.rol.activo === false) {
+            res.locals.token = null;
+            res.locals.payload = null;
+            return res.status(400).json({ success: false, message: "User logged role has not active!" });
+        }
+        if (userAndPermissions.token !== token) {
+            res.locals.token = null;
+            res.locals.payload = null;
+            return res.status(404).json({ success: false, message: "Invalid user token!" });
+        }
+        const data = userAndPermissions.rol.roles_permisos.map(rol_perm => {
+            return {
+                slug: rol_perm.permiso.slug,
+                permit: Object.assign({}, rol_perm)
+            };
+        });
+        validatePermissions({ req, data });
+        next();
     }
     catch (error) {
-        return res.status(500).json({ message: "error trying connect to database." });
+        console.error("Internal server error on middleware checking user session.", { error });
+        return res.status(500).json({ success: false, message: "Internal server error on middleware checking user session.", data: error });
     }
-    next();
-    return;
+    finally {
+        yield prisma.$disconnect();
+    }
 });
-exports.verifyActiveUserToken = verifyActiveUserToken;
+exports.validateActiveUser = validateActiveUser;
+const validatePermissions = ({ req, data }) => {
+    const slug = req.path;
+    const method = req.method.toUpperCase();
+    const verb = verbConversion[method];
+    const hasPermittion = data.map(entry => {
+        return (entry.slug === slug
+            && entry.permit[verb]);
+    }).filter(entry => entry)[0];
+    return hasPermittion;
+};

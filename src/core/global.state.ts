@@ -63,10 +63,10 @@ import { addNewFlowList, getNextServiceId, updatePositionOrderList } from './flo
 
 interface TurnosActivos extends Atenciones_turnos_servicios {
     state_id: number
-    servicio_name?: string
-    departamento_name?: string
-    agente_name?: string
+    departamento: Departamentos
     estado_turno_name?: Tipado_estados_turnos
+    servicio: Servicios;
+    agente: Agentes;
 }
 
 interface QueueStateType extends Turnos {
@@ -76,21 +76,31 @@ interface QueueStateType extends Turnos {
 }
 
 interface AgentesWithService extends Agentes {
-    esperando_servicios_destino_id?: Array <number>
+    esperando_servicios_destino_id?: Array <number>,
+    grupo_servicio_id: number
 }
 
 interface GlobalOffices extends Sucursales {
-    conjunto_agentes?: Array < AgentesWithService >
-    conjunto_servicios?: Array < Servicios >
-    conjunto_departamentos?: Array < Departamentos >
-    conjunto_pantallas?: Array < Pantallas > 
+    conjunto_agentes: Array < AgentesWithService >
+    conjunto_servicios: Array < Servicios >
+    conjunto_departamentos: Array < Departamentos >
+    conjunto_pantallas: Array < Pantallas > 
 }
 
 
-const QUEUE_STATE: Array< QueueStateType >  = []
-const PERSISTENT_DATA: Array < GlobalOffices > = []
+const QUEUE_STATE: Array <QueueStateType>  = []
+const PERSISTENT_DATA: Array <GlobalOffices> = []
 
 const prisma = new PrismaClient();
+
+/**
+ * Metodo con ejecucion asincrona para inicializar
+ * las constantes en caso de que esten vacias.
+ */
+export const initData = () => {
+    if (PERSISTENT_DATA.length === 0) refreshPersistentData()
+    if (QUEUE_STATE.length === 0) refreshQueueState()
+}
 
 /**
  * Metodo con ejecucion asincrona para actualizar
@@ -102,7 +112,16 @@ export const refreshPersistentData = () => {
             const data = await prisma.sucursales.findMany({
                 include: {
                     departamentos_sucursales: {
-                        select: { agentes: true,
+                        select: {
+                            agentes: {
+                                include: {
+                                    tipo_agente: {
+                                        select: {
+                                            grupo_servicio_id: true
+                                        }
+                                    }
+                                }
+                            },
                             servicios_departamentos_sucursales: {
                                 select: { servicio: true,
                                     departamento_sucursal: {
@@ -133,13 +152,22 @@ export const refreshPersistentData = () => {
             })
 
             if (data === null) throw new Error("data got from database is empty.")
-
+            console.log({data})
             PERSISTENT_DATA.length = 0
 
             data.map(sucursal => {
 
                 const conjunto_agentes = sucursal.departamentos_sucursales
-                        .map(depsuc => depsuc.agentes)[0]
+                        .map(depsuc => {
+                            return {
+                                ...depsuc.agentes.map(agente => {
+                                    return {
+                                        ...agente,
+                                        grupo_servicio_id: agente.tipo_agente.grupo_servicio_id
+                                    }
+                                })
+                            }
+                        })[0]
                         .filter(entry => entry !== null);
                         
                 const conjunto_servicios = sucursal.departamentos_sucursales
@@ -172,6 +200,8 @@ export const refreshPersistentData = () => {
             reject(error)
 
             return false
+        } finally {
+            console.log("Async refresh PERSISTENT_DATA", {length: PERSISTENT_DATA.length})
         }
     })
 }
@@ -253,11 +283,6 @@ export const refreshQueueState = () => {
         try {
             const turnosActivos = await prisma.turnos.findMany({
                 where: {
-                    estado_turno: {
-                        descripcion: {
-                            notIn: [ 'CANCELADO', 'TERMINADO' ]
-                        }
-                    },
                     fecha_turno: prismaTodayFilter()
                 },
                 include: {
@@ -266,10 +291,7 @@ export const refreshQueueState = () => {
                         include: {
                             servicio: true,
                             agente: {
-                                select: {
-                                    id: true,
-                                    nombre: true,
-                                    descripcion: true,
+                                include: {
                                     departamento_sucursal: {
                                         select: {
                                             sucursal: {
@@ -282,12 +304,7 @@ export const refreshQueueState = () => {
                                                     }
                                                 }
                                             },
-                                            departamento: {
-                                                select: {
-                                                    id: true,
-                                                    descripcion: true
-                                                }
-                                            }
+                                            departamento: true
                                         }
                                     }
                                 }
@@ -316,9 +333,9 @@ export const refreshQueueState = () => {
                             return {
                                 ...atencion,
                                 state_id: index,
-                                servicio_name: atencion.servicio.descripcion,
-                                departamento_name: atencion.agente.departamento_sucursal.departamento.descripcion,
-                                agente_name: atencion.agente.nombre,
+                                servicio: atencion.servicio,
+                                departamento: atencion.agente.departamento_sucursal.departamento,
+                                agente: atencion.agente,
                                 estado_turno_name: turno.estado_turno?.descripcion
                             }
                         })
@@ -342,6 +359,8 @@ export const refreshQueueState = () => {
             reject(error)
 
             return false
+        } finally {
+            console.log("Async refresh QUEUE_STATE", {length: QUEUE_STATE.length})
         }
     })
 }
@@ -407,9 +426,13 @@ export const getServiceById = (id: number) => {
  * @param id sucursal
  * @returns 
  */
-export const getQueuesListBySucursalId = (id: number) => {
+export const getQueuesListByService = (
+    {sucursal_id, servicio_destino_id, servicio_actual_id}:
+    {sucursal_id: number, servicio_destino_id?: number, servicio_actual_id?: number}) => {
     return QUEUE_STATE.filter(turno => 
-        turno.sucursal_id === id   
+        turno.sucursal_id === sucursal_id
+        && (servicio_actual_id) ? turno.servicio_actual_id === servicio_actual_id : true
+        && (servicio_destino_id) ? turno.servicio_destino_id === servicio_destino_id : true
     )
 }
 
@@ -442,6 +465,7 @@ export const GetAllAvailableServicesInSucursal = ({sucursal_id, grupo_id, es_sel
 }
 
 type agentStateType = {
+    agente_id: number,
     usuario_id: number,
     servicios_destino_id?: Array <number>,
     esperando?: boolean
@@ -453,10 +477,13 @@ type agentStateType = {
  * @param param0 
  * @returns 
  */
-export const setWaitingState = ({usuario_id, esperando = true, servicios_destino_id}: agentStateType): boolean => {
+export const setWaitingState = ({agente_id, usuario_id, esperando = true, servicios_destino_id}: agentStateType): boolean => {
     const found = PERSISTENT_DATA.map(sucursal => {
         if (sucursal.conjunto_agentes !== undefined){
-            return sucursal.conjunto_agentes.filter(agente => agente.usuario_id === usuario_id)[0]
+            return sucursal.conjunto_agentes.filter(agente => (
+                agente.id === agente_id
+                && agente.usuario_id === usuario_id // Valida que el agente tenga relacion con el usuario logeado
+            ))[0]
         }
         return null
     }).filter(entry => entry !== null)[0]
@@ -520,7 +547,7 @@ export const getCallQueueState = ({displayUUID}: {displayUUID: UUID}): DisplayQu
         .filter(entry => (
             entry.estatus_llamada === "UNCALLED"
             &&  entry.estado_turno_name !== undefined
-            &&  entry.estado_turno_name === 'NUEVA_SESION'
+            &&  ['NUEVA_SESION','ESPERANDO'].includes(entry.estado_turno_name)
         ))[0] ?? null
 
 
@@ -539,7 +566,7 @@ export const getCallQueueState = ({displayUUID}: {displayUUID: UUID}): DisplayQu
                         servicio.id === firstFilter.servicio_actual_id
                     ))[0]
                     return sucursal.conjunto_agentes.filter(agente => (
-                        (agente.esperando_servicios_destino_id === undefined ? true :
+                        (agente.esperando_servicios_destino_id === undefined ||
                             agente.esperando_servicios_destino_id.includes(firstFilter.servicio_destino_id))
                         && servicio.grupo_id === agente.grupo_servicio_id
                         && agente.esperando
@@ -558,16 +585,21 @@ export const getCallQueueState = ({displayUUID}: {displayUUID: UUID}): DisplayQu
         return null
     }
 
+    const [letters, numbers] = firstFilter.secuencia_ticket.match(/([a-zA-Z]+)|(\d+)/g) ?? []
+    
     const newCall: DisplayQueue = {
         id: firstUncalled.state_id,
         tittle: getDisplayCallTittle({turno: firstFilter}),
         callStatus: firstUncalled.estatus_llamada,
         message: {
-            servicio: firstUncalled.servicio_name ?? "",
-            departamento: firstUncalled.departamento_name ?? ""
+            servicio: firstUncalled.servicio.descripcion,
+            departamento: firstUncalled.departamento.descripcion
         },
         voice: {
-            lenght: 3
+            uri: `/audio/stream-queue?
+                    letters=${letters}
+                    &number=${numbers}
+                    &department=${firstUncalled.departamento.siglas}`
         }
     }
 
@@ -669,6 +701,7 @@ export const getActiveQueueList = ({displayUUID}: {displayUUID: UUID}): Array<ac
     if (activeTurnosBySucursal.length === 0) return null
 
     const filterActiveAttending = activeTurnosBySucursal.map(turno => {
+
         return {
             ...turno,
             activo: turno.atencion.filter(entry => entry.servicio_id === turno.servicio_actual_id )[0]

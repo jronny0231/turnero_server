@@ -1,10 +1,11 @@
 import { z } from 'zod'
+import { agentSchema } from './agent.schema'
 
-const userSchema = z.object({
+export const userSchema = z.object({
     nombres: z.string().min(1).max(50),
     correo: z.string().email().max(60),
-    username: z.string().min(4).max(15)
-                .regex(/^[a-zA-Z][a-zA-Z0-9]*_[a-zA-Z0-9]*$/,
+    username: z.string().min(3).max(15)
+                .regex(/^[A-Z][a-zA-Z0-9_]+$/,
                     "Must start with uppercase and only include letters, numbers and one underscore"),
     password: z.string().min(8).max(80)
                 .regex(/^(?=.*[a-z]).+$/,
@@ -19,6 +20,7 @@ const userSchema = z.object({
                 .regex(/^(?=.*\d).+$/,
                     "Must contain at least one NUMBER"),
     rol_id: z.number().min(1),
+    agentes: z.tuple([agentSchema]).optional(),
 })
 
 export const createUser = z.object({
@@ -33,7 +35,8 @@ export const updateUser = z.object({
     body: userSchema.pick({
         username: true,
         correo: true,
-        rol_id: true
+        rol_id: true,
+        agentes: true
     }).partial()    
 })
 
@@ -41,7 +44,7 @@ export const userCredential = z.object({
     body: userSchema.pick({
         username: true,
         password: true
-    })  
+    })
 })
 
 export const passwordChange = z.object({
@@ -49,11 +52,9 @@ export const passwordChange = z.object({
         id: z.number().gte(1)
     }),
     
-    body: z.object({
-        currentPassword: userSchema.pick({password: true}),
-        newPassword: userSchema.pick({password: true}),
-        repeatPassword: userSchema.pick({password: true})
-    })  
+    body: userSchema.pick({
+        password: true
+    }) 
 })
 
 export type createUserType = z.infer<typeof createUser>

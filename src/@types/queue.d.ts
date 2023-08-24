@@ -47,8 +47,7 @@ export type DisplayQueue = {
         departamento: string
     },
     voice: {
-        url?: string,
-        lenght?: number
+        uri: string
     }
 };
 

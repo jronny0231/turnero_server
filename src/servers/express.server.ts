@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import fileUpload from 'express-fileupload';
+import path from 'path';
 
 
 const App = express();
@@ -24,7 +25,7 @@ App.use(cors({
 // Express Middleware settings
 App.use(express.json());
 App.use(express.urlencoded({ extended: false }))
-App.use('/static', express.static('public'))
+App.use(express.static(path.resolve('./public')));
 App.use(fileUpload({
   useTempFiles : true,
   tempFileDir : '/tmp/upload/'

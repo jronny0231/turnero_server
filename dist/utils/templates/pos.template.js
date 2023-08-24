@@ -80,22 +80,6 @@ const POSTemplate = (data) => {
             </body>
         </html>
     `;
-    const options = {
-        // Export options
-        directory: "./tmp",
-        // Papersize Options: http://phantomjs.org/api/webpage/property/paper-size.html
-        height: "120mm",
-        width: "80mm",
-        border: {
-            top: "5mm",
-            right: "2mm",
-            bottom: "5mm",
-            left: "2mm"
-        },
-        type: "pdf",
-        //base: 'file:///' + __dirname.replace('\\','/') + '/src/assets/'
-    };
-    console.log(__dirname, options.base);
-    return { content, options };
+    return { content };
 };
 exports.POSTemplate = POSTemplate;

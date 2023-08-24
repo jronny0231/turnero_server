@@ -27,22 +27,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const User = __importStar(require("../controllers/user.controller"));
+const Auth = __importStar(require("../providers/auth.provider"));
 const activeToken_middlewares_1 = require("../middlewares/activeToken.middlewares");
 const activeUser_middlewares_1 = require("../middlewares/activeUser.middlewares");
-const jwt_helper_1 = require("../services/jwt.helper");
+const validation_middlewares_1 = __importDefault(require("../middlewares/validation.middlewares"));
+const user_schema_1 = require("../schemas/user.schema");
 const router = express_1.default.Router();
-router.post('/login', User.Login);
-router.get('/refreshToken', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, jwt_helper_1.refreshToken);
-router.delete('/logout', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, User.Logout);
-router.get('/profile', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, (_req, res) => {
-    const id = res.locals.payload.id;
-    User.GetUserByTokenId(id, res);
-});
-router.get('/agent', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, (_req, res) => {
-    const id = res.locals.payload.id;
-    User.GetAgentByTokenId(id, res);
-});
-router.put('/passwordReset/:id', User.UpdatePassword);
-router.put('/passwordReset', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, User.UpdatePassword);
+const middlewares = [activeToken_middlewares_1.authToken, activeUser_middlewares_1.validateActiveUser];
+router.post('/login', (0, validation_middlewares_1.default)(user_schema_1.userCredential), Auth.Login);
+router.get('/refreshToken', middlewares, Auth.RefreshToken);
+router.delete('/logout', middlewares, Auth.Logout);
+router.get('/profile', middlewares, Auth.GetAccount);
+router.put('/profile', middlewares, (0, validation_middlewares_1.default)(user_schema_1.updateUser), Auth.UpdateAccount);
+router.put('/update-password/', middlewares, (0, validation_middlewares_1.default)(user_schema_1.passwordChange), Auth.UpdatePassword);
+router.put('/reset-password/:id', middlewares, Auth.ResetPassword);
 exports.default = router;

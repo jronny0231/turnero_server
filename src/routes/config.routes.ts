@@ -1,7 +1,7 @@
 import express, { Request, Response  } from 'express';
 import { authToken } from '../middlewares/activeToken.middlewares';
 import { getDisplayProps } from '../middlewares/smartTV.middlewares';
-import { verifyActiveUserToken } from '../middlewares/activeUser.middlewares';
+import { validateActiveUser } from '../middlewares/activeUser.middlewares';
 import { middlewaresType } from '../@types/global';
 import { UUID } from 'crypto';
 import { Horarios, PrismaClient } from '@prisma/client';
@@ -9,13 +9,13 @@ import { Horarios, PrismaClient } from '@prisma/client';
 const router = express.Router()
 const prisma = new PrismaClient;
 
-const secMiddleware: middlewaresType = [authToken, verifyActiveUserToken];
+const secMiddleware: middlewaresType = [authToken, validateActiveUser];
 
 /**
  * RUTAS PARA CARGA DE DATOS INICIALES SEGUN TABLA DE CONFIGURACIONES 
  */
 router.get('/init/web', secMiddleware)
-router.get('/init/display', getDisplayProps, (_req: Request, res: Response) =>{
+router.get('/init/display/', getDisplayProps, (_req: Request, res: Response) =>{
     const displayUUID: UUID = res.locals.display
     
     const data = {
@@ -43,7 +43,7 @@ router.get('/init/display', getDisplayProps, (_req: Request, res: Response) =>{
  * RUTAS PARA SETEO DE DATOS INICIALES DE LA BASE DE DATOS
  * Tales como permisos 
  */
-router.post('/init/system', secMiddleware, (req: Request, res: Response) =>{
+router.post('/init/system/', secMiddleware, (req: Request, res: Response) =>{
     const dataPayload: object = req.body()
     const authUser: object = res.locals.payloay
 
@@ -56,7 +56,7 @@ router.post('/init/system', secMiddleware, (req: Request, res: Response) =>{
     console.log({dataPayload, authUser})
     res.json({success: true, data: commons})
 })
-router.post('/init/dictionaries', secMiddleware, (req: Request, res: Response) =>{
+router.post('/init/dictionaries/', secMiddleware, (req: Request, res: Response) =>{
     const dataPayload: any = req.body
     const authUser: object = res.locals.payloay
 

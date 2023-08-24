@@ -1,14 +1,14 @@
 import express from 'express';
 import { authToken } from '../middlewares/activeToken.middlewares';
 import * as controller from '../controllers/agent.controller';
-import { verifyActiveUserToken } from '../middlewares/activeUser.middlewares';
+import { validateActiveUser } from '../middlewares/activeUser.middlewares';
 import { middlewaresType } from '../@types/global';
 import validateWith from '../middlewares/validation.middlewares'
 import { createAgent, updateAgentStatus } from '../schemas/agent.schema';
 
 const router = express.Router()
 
-const middlewares: middlewaresType = [authToken, verifyActiveUserToken];
+const middlewares: middlewaresType = [authToken, validateActiveUser];
 
 router.put('/atendiendo/', middlewares, validateWith(updateAgentStatus), controller.UpdateAgentQueueStatus)
 

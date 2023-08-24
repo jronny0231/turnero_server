@@ -1,10 +1,11 @@
-import { refreshPersistentData, refreshQueueState } from "./global.state"
+import { loadAudioFilesPath } from "../controllers/records.controller"
+//import { initData } from "./global.state"
 
 
 export const initialize = () => {
 
-    refreshPersistentData()
+    //initData()
 
-    refreshQueueState()
+    loadAudioFilesPath()
     
 }

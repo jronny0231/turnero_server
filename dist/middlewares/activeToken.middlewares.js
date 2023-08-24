@@ -14,32 +14,28 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const PRIVATE_TOKEN_SECRET = "@#$56;ñasdasdasdÑasdad$%&5468(//&//#hnAde!/ñpP[];mnf234-=&111;ñaqxqeAAQW12$%$&°";
-const TOKEN_SECRET = process.env.TOKEN_SECRET || PRIVATE_TOKEN_SECRET;
-exports.authToken = ((req, res, next) => {
+const jwt_helper_1 = require("../services/jwt.helper");
+const TOKEN_SECRET = (0, jwt_helper_1.getSecret)();
+const authToken = (req, res, next) => {
     // Request and check bearer token from header
     const authHeader = req.get('authorization');
-    if (authHeader === undefined)
-        return res.status(403).json({ message: 'bearer token forbidden' });
-    const tokenType = authHeader.split(' ')[0];
-    const token = authHeader.split(' ')[1];
-    if (tokenType !== 'Bearer' || token == null)
-        return res.status(403).json({ message: 'bearer token invalid' });
+    if (authHeader === undefined) {
+        return res.status(403).json({ success: false, message: 'bearer token forbidden' });
+    }
+    const { tokenType, token } = authHeader.split(' ');
+    if (tokenType !== 'Bearer' || typeof token !== 'string') {
+        return res.status(403).json({ success: false, message: 'bearer token invalid' });
+    }
     // Verify token (iss, lifetime, structure) from jwt
-    jsonwebtoken_1.default.verify(token, TOKEN_SECRET, (err, payload) => __awaiter(void 0, void 0, void 0, function* () {
+    jsonwebtoken_1.default.verify(token, TOKEN_SECRET, (err, decode) => __awaiter(void 0, void 0, void 0, function* () {
         // If error return it
         if (err) {
-            return res.status(403).json({ message: err.message });
+            return res.status(403).json({ success: false, message: err.message });
         }
-        // Verify if user data in token is super user offline account
-        if (payload.data.type === "super") {
-            res.locals.payload = payload.data;
-            next();
-            return;
-        }
-        // Set response local variables with verify user data payload 
-        res.locals.payload = payload.data;
-        res.locals.payload.token = token;
+        const payload = decode.data;
+        res.locals.payload = payload;
+        res.locals.token = token;
         next();
     }));
-});
+};
+exports.authToken = authToken;

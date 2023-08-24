@@ -3,12 +3,25 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { createToken } from "../services/jwt.helper";
 import { encryptPassword } from "../utils/filtering";
-import { ZodError, z } from "zod"
-import { passwordChangeType, updateUserType, userCredentialType } from "../schemas/user.schema";
+import { ZodError } from "zod"
+import { passwordChangeType, updateUserType, userCredentialType, userSchema } from "../schemas/user.schema";
+import { payloadType } from "../@types/auth";
+import path from 'path'
 
 const prisma = new PrismaClient;
 
 const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD ?? "%-d3fP4$$w0rd"
+
+export const LoginForm = (_req: Request, res: Response) => {
+    const pathfile = path.join(path.resolve('./'), '/src/pages/loginForm.html')
+    console.log(pathfile)
+    res.sendFile(pathfile);
+}
+
+export const ConfirmPasswordForm = (_req: Request, res: Response) => {
+    const pathfile = path.join(path.resolve('./'), '/src/pages/resetPasswordForm.html')
+    return res.sendFile(pathfile);
+}
 
 
 export const Login = async (req: Request, res: Response) => {
@@ -35,17 +48,25 @@ export const Login = async (req: Request, res: Response) => {
             return res.status(404).json({success: false, message: 'El usuario no esa activo, hable con su administrador'});
         }
 
+        const token = createToken({
+            id: user.id,
+            type: 'USER',
+            username: user.username,
+            correo: user.correo
+        })
+        
+        /*
         if (bcrypt.compareSync(DEFAULT_PASSWORD, user.password)) {
-            return res.redirect("/auth/reset-password")
+            return res.redirect(req.baseUrl + '/reset-password' + '?token=' + token)
         }
-
+        */
+       
         if (bcrypt.compareSync(body.password, user.password)) {
-            const token = createToken({
-                id: user.id,
-                type: 'user',
-                username: user.username,
-                correo: user.correo
+            await prisma.usuarios.update({
+                where: { id: user.id },
+                data: { token }
             })
+
             return res.json({success: true, data: token})
         }
 
@@ -130,7 +151,15 @@ export const UpdateAccount = async (req: Request, res: Response) => {
         }
 
         const result = await prisma.usuarios.update({
-            where: { id, activo: true }, data, select: {
+            where: {
+                id,
+                activo: true
+            },
+            data: {
+                ...data,
+                agentes: undefined
+            },
+            select: {
                 nombres: true, username: true, correo: true, updatedAt: true
             }
         })
@@ -224,13 +253,36 @@ export const ResetPassword = async (req: Request, res: Response) => {
     }
 }
 
+export const RefreshToken = async (_req: any, res: any) => {
+    const payload: payloadType = res.locals.payload;
+
+    try {
+        const token = createToken(payload)
+        if (payload.type === 'USER') {
+             await prisma.usuarios.update({
+                where: { id: payload.id },
+                data: { token }
+            })
+        }
+        
+        return res.json({success: true, data: token})
+        
+    } catch (error) {
+        console.error(`Error trying refresh token to user: ${payload.username}`, {error})
+        return res.status(500).json({success: false, message: `Error trying refresh token to user: ${payload.username}`, data: error})
+    
+    } finally {
+        await prisma.$disconnect()
+    }
+}
+
 const getSuperUserData = () => {
     const data = process.env.SUPER_USER?.split(":")
 
     if (data === undefined) return null
 
     const id = 0
-    const type = 'super'
+    const type: payloadType['type'] = 'SUPER'
     const username = data[0]
     const password = data[1]
     const correo = data[2] ?? undefined
@@ -250,6 +302,10 @@ const getSuperUserLogin = (credentials: {username: string, password:string}) => 
     }
 
     const { id, type, username, password, correo } = superUser
+
+    if (username !== credentials.username) {
+        return null
+    }
 
     const validacion = credentialsValidation({username, password, correo})
 
@@ -284,47 +340,19 @@ const getSuperUserLogin = (credentials: {username: string, password:string}) => 
 
 
 
-export const credentialsValidation = ({username, password, passwordCheck, correo}: {username?: string, password?: string, passwordCheck?: string, correo?: string}) => {
+const credentialsValidation = ({username, password, passwordCheck, correo}: {username?: string, password?: string, passwordCheck?: string, correo?: string}) => {
     try {
-        z.object({
-            correo: z.string().email().max(60).optional(),
-            username: z.string().min(4).max(15)
-                        .regex(/^[a-zA-Z][a-zA-Z0-9]*_[a-zA-Z0-9]*$/,
-                            "Must start with uppercase and only include letters, numbers and one underscore")
-                        .optional(),
-            password: z.string().min(8).max(80)
-                        .regex(/^(?=.*[a-z]).+$/,
-                            "Must contain at least one LOWERCASE letter")
-
-                        .regex(/^(?=.*[A-Z]).+$/,
-                            "Must contain at least one UPPERCASE letter")
-
-                        .regex(/^(?=.*[-+_!@#$%^&*., ?]).+$/,
-                            "Must contain at least one SPECIAL character")
-                        
-                        .regex(/^(?=.*\d).+$/,
-                            "Must contain at least one NUMBER")
-                        .optional(),
-            passwordCheck: z.string().min(8).max(80)
-                        .regex(/^(?=.*[a-z]).+$/,
-                            "Must contain at least one LOWERCASE letter")
-
-                        .regex(/^(?=.*[A-Z]).+$/,
-                            "Must contain at least one UPPERCASE letter")
-
-                        .regex(/^(?=.*[-+_!@#$%^&*., ?]).+$/,
-                            "Must contain at least one SPECIAL character")
-                        
-                        .regex(/^(?=.*\d).+$/,
-                            "Must contain at least one NUMBER")
-                        .optional(),
-        }).parse({
+        userSchema.pick({
+            correo: true,
+            username: true,
+            password: true,
+        }).optional()
+        .parse({
             username,
             password,
             passwordCheck,
             correo
         })
-
         return {
             success: true
         }
@@ -333,7 +361,7 @@ export const credentialsValidation = ({username, password, passwordCheck, correo
         if (error instanceof ZodError) {
             const data = error.issues.map((issue,_,errors) => {
                 return {
-                    key: issue.path[0],
+                    key: issue.path.join(" > "),
                     messages: errors.filter(error => error.path === issue.path)
                                     .map(error => error.message)
                 }

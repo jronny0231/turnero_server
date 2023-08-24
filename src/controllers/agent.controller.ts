@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { Agentes, PrismaClient } from '@prisma/client';
-import { encryptPassword } from '../utils/filtering';
 import { setWaitingState } from '../core/global.state';
 import { createAgentType, updateAgentStatusType } from '../schemas/agent.schema';
 
@@ -42,28 +41,7 @@ export const StoreNewAgent = async (req: Request, res: Response) => {
     try {
         await prisma.$connect()
 
-        let newUserId: number | undefined = data.usuario_id
-
-        if (data.usuario !== undefined) {
-            const userData = data.usuario.body
-
-            const findUser = await prisma.usuarios.findFirst({
-                where: {username: userData.username}
-            })
-
-            if (findUser !== null) {
-                return res.status(400).json({success: false, message: "User data is already registred"})
-            }
-
-            const password = await encryptPassword(userData.password)
-
-            newUserId = (await prisma.usuarios.create({
-                data: {
-                    ...userData,
-                    password
-                }
-            })).id
-        }
+        const newUserId: number | undefined = data.usuario_id
 
         if (newUserId === undefined) {
             return res.status(404).json({message: 'Agente cant be created without user data or usuario_id'})
@@ -115,11 +93,11 @@ export const UpdateAgentQueueStatus = (req: Request, res: Response) => {
                 message: `Agente with usuario id ${usuario_id} availability was not updated`})
         }
         
-        return res.json({success: true, message: `Agente with usuario id ${usuario_id} availability was updated!`})
+        return res.json({success: true, message: `Agente with id ${data.agente_id} availability was updated!`})
         
         
     } catch (error) {
-        return res.status(500).json({message: `Server status error updating Agente availability usuario_id: ${usuario_id} data.`, data: error})
+        return res.status(500).json({message: `Server status error updating Agente availability with id: ${data.agente_id} data.`, data: error})
     }
 }
 

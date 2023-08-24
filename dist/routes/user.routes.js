@@ -8,9 +8,10 @@ const activeToken_middlewares_1 = require("../middlewares/activeToken.middleware
 const user_controller_1 = require("../controllers/user.controller");
 const activeUser_middlewares_1 = require("../middlewares/activeUser.middlewares");
 const router = express_1.default.Router();
-router.get('/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, user_controller_1.GetAllUsers);
-router.get('/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, user_controller_1.GetUserById);
-router.post('/', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, user_controller_1.StoreNewUser);
-router.put('/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, user_controller_1.UpdateUser);
-router.delete('/:id', activeToken_middlewares_1.authToken, activeUser_middlewares_1.verifyActiveUserToken, user_controller_1.DeleteUser);
+const middlewares = [activeToken_middlewares_1.authToken, activeUser_middlewares_1.validateActiveUser];
+router.get('/', middlewares, user_controller_1.GetAllUsers);
+router.get('/:id', middlewares, user_controller_1.GetUserById);
+router.post('/', middlewares, user_controller_1.StoreNewUser);
+router.put('/:id', middlewares, user_controller_1.UpdateUser);
+router.delete('/:id', middlewares, user_controller_1.DeleteUser);
 exports.default = router;

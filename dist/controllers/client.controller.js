@@ -9,60 +9,77 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeleteClients = exports.UpdateClients = exports.StoreNewClients = exports.GetClientsById = exports.GetAllClients = void 0;
-const client_model_1 = require("../models/client.model");
-const filtering_1 = require("../utils/filtering");
-/**
-    id: number;
-    nombre: string;
-    apellidos: string;
-    tipo_identificacion_id: number;
-    identificacion: string;
-    seguro_id: number;
-    nombre_tutorado: string | null;
-    fecha_ultima_visita: Date | null;
-    estatus: boolean;
-    registrado_por_id: number;
-    modificado_por_id: number | null;
-    createdAt: Date;
-    updatedAt: Date;
- */
-const INPUT_TYPES_CLIENTES = ['nombre', 'apellidos', 'tipo_identificacion_id', 'identificacion', 'seguro_id', 'nombre_tutorado'];
-const OUTPUT_TYPES_CLIENTES = ['id', 'nombre', 'apellidos', 'tipo_identificacion', 'identificacion', 'seguro', 'nombre_tutorado', 'fecha_ultima_visita', 'estatus', 'registrado_por_id', 'createdAt'];
-exports.GetAllClients = ((_req, res) => {
-    (0, client_model_1.GetAll)().then((Clients => {
-        const data = Clients.map((Clients) => {
-            return (0, filtering_1.ObjectFiltering)(Clients, OUTPUT_TYPES_CLIENTES);
-        });
-        res.send({ success: true, data });
-    })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-        res.status(404).send({ error: error.message });
-    }));
-});
-exports.GetClientsById = ((req, res) => {
-    const id = Number(req.params.id);
-    (0, client_model_1.GetById)(id).then((user => {
-        const data = (0, filtering_1.ObjectFiltering)(user, OUTPUT_TYPES_CLIENTES);
-        res.send({ success: true, data });
-    })).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-        res.status(404).send({ error: error.message });
-    }));
-});
-exports.StoreNewClients = ((req, res) => {
-    const data = req.body;
-    if ((0, filtering_1.ObjectDifferences)(data, INPUT_TYPES_CLIENTES).length > 0) {
-        return res.status(400).json({ message: 'Incorrect or incomplete data in request', valid: INPUT_TYPES_CLIENTES });
+exports.DeleteClients = exports.UpdateClients = exports.StoreNewClient = exports.GetClientsById = exports.GetAllClients = void 0;
+const client_1 = require("@prisma/client");
+const prisma = new client_1.PrismaClient();
+const GetAllClients = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const clientes = yield prisma.clientes.findMany().finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
+        if (clientes.length === 0)
+            return res.status(404).json({ message: 'Clients data was not found' });
+        return res.json({ success: true, message: 'Clients data was successfully recovery', data: clientes });
     }
-    (0, client_model_1.Store)(data).then((newClients) => {
-        const data = (0, filtering_1.ObjectFiltering)(newClients, OUTPUT_TYPES_CLIENTES);
-        return res.send({ message: 'Clients created successfully!', data });
-    }).catch((error) => __awaiter(void 0, void 0, void 0, function* () {
-        if (error.code === 'P2000')
-            return res.status(400).send({ error: 'A field is too longer.', message: error.message });
-        return res.status(400).send({ error: error.message });
-    }));
-    return;
+    catch (error) {
+        return res.status(500).json({ message: 'Server status error getting Clients data.', data: error });
+    }
 });
+exports.GetAllClients = GetAllClients;
+const GetClientsById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = Number(req.params.id);
+    try {
+        const cliente = yield prisma.clientes.findFirst({
+            where: { id }
+        }).finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
+        if (cliente === null)
+            return res.status(404).json({ message: `Client data with id: ${id} was not found` });
+        return res.json({ success: true, message: `Client with id: ${id} was successfully recovery`, data: cliente });
+    }
+    catch (error) {
+        return res.status(500).json({ message: 'Server status error getting Clients data.', data: error });
+    }
+});
+exports.GetClientsById = GetClientsById;
+const StoreNewClient = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const receive = (_a = req.query.with) !== null && _a !== void 0 ? _a : false;
+    const include = receive ? String(receive).toUpperCase() : 'NONE';
+    const registrado_por_id = res.locals.payload.id;
+    try {
+        let nuevoCliente = {};
+        yield prisma.$connect();
+        if (include === 'SEGURO') {
+            const data = req.body;
+            let seguro = yield prisma.seguros.findFirst({
+                where: { NOT: { OR: [
+                            { siglas: data.seguro.siglas },
+                            { nombre_corto: data.seguro.nombre_corto },
+                            { nombre: data.seguro.nombre }
+                        ]
+                    } }
+            });
+            if (seguro === null) {
+                seguro = yield prisma.seguros.create({
+                    data: Object.assign({}, data.seguro)
+                });
+            }
+            nuevoCliente = yield prisma.clientes.create({
+                data: Object.assign(Object.assign({}, data), { seguro: undefined, seguro_id: seguro.id, registrado_por_id })
+            });
+        }
+        else if (include === 'NONE') {
+        }
+        if (nuevoCliente === null)
+            return res.status(404).json({ message: 'Cliente was not created' });
+        return res.json({ success: true, message: 'Cliente data was successfully created', data: nuevoCliente });
+    }
+    catch (error) {
+        return res.status(500).json({ message: 'Server status error creating new Cliente.', data: error });
+    }
+    finally {
+        yield prisma.$disconnect();
+    }
+});
+exports.StoreNewClient = StoreNewClient;
 exports.UpdateClients = ((_req, res) => {
     res.send('Update a Clientes');
 });

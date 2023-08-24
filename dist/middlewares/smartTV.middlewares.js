@@ -10,10 +10,19 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDisplayProps = void 0;
-const getDisplayProps = (_req, _res, next) => __awaiter(void 0, void 0, void 0, function* () {
+const filtering_1 = require("../utils/filtering");
+const getDisplayProps = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     // Aqui ira la logica con la tabla de Pantallas para comparar la informacion
     // del objeto request que servira de autenticacion ademas de brindar
     // informacion sobre la pantalla que hace la solicitud.
+    const key = (0, filtering_1.stringToUUID)((_a = req.get("X-Display-UUID")) !== null && _a !== void 0 ? _a : "");
+    if (key === null) {
+        return res.status(403).json({ message: "invalid X-Display-UUID header-key, please fix it and try again." });
+    }
+    res.locals.display = key;
+    // console.log("Display connected: ", key)
     next();
+    return;
 });
 exports.getDisplayProps = getDisplayProps;

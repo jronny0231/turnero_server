@@ -1,12 +1,12 @@
 import express from 'express';
 import { authToken } from '../middlewares/activeToken.middlewares';
 import { DeleteUser, GetAllUsers, GetUserById, StoreNewUser, UpdateUser } from '../controllers/user.controller';
-import { verifyActiveUserToken } from '../middlewares/activeUser.middlewares';
+import { validateActiveUser } from '../middlewares/activeUser.middlewares';
 import { middlewaresType } from '../@types/global';
 
 const router = express.Router()
 
-const middlewares: middlewaresType = [authToken, verifyActiveUserToken];
+const middlewares: middlewaresType = [authToken, validateActiveUser];
 
 
 router.get('/', middlewares, GetAllUsers);

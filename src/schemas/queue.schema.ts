@@ -7,8 +7,8 @@ export const createQueueWithClient = z.object({
         cliente: z.object({
             tipo_identificacion_id: z.number().gte(1).lte(3),
             identificacion: z.string().min(9).max(20),
-            seguro_id: z.number().gte(1).lte(2),
-            es_tutor: z.boolean(),
+            seguro_id: z.number().gte(1).lte(2).optional(),
+            es_tutor: z.boolean().default(false).optional(),
         })
     })
 })
