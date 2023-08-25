@@ -16,7 +16,7 @@ exports.default = (schema) => (req, res, next) => {
             const method = req.method;
             const data = error.issues.map((issue, _, errors) => {
                 return {
-                    key: issue.path[0],
+                    key: issue.path.join(" > "),
                     messages: errors.filter(error => error.path === issue.path)
                         .map(error => error.message)
                 };

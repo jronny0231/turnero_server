@@ -68,9 +68,9 @@ const getActiveQueuesByDisplayId = (_req, res) => {
             return {
                 id: turno.id,
                 secuencia_ticket: turno.secuencia_ticket,
-                servicio_destino: turno.activo.servicio_name,
-                agente: turno.activo.agente_name,
-                destino: turno.activo.servicio_name
+                servicio: turno.activo.servicio.descripcion,
+                agente: turno.activo.agente.nombre,
+                destino: turno.activo.departamento.descripcion
             };
         });
         const columns = [

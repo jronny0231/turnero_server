@@ -27,14 +27,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const express_server_1 = __importDefault(require("../servers/express.server"));
-const controller = __importStar(require("../controllers/turnos.controller"));
-const auth_controller_1 = require("../controllers/auth.controller");
+const controller = __importStar(require("../controllers/records.controller"));
+const validation_middlewares_1 = __importDefault(require("../middlewares/validation.middlewares"));
+const records_schema_1 = require("../schemas/records.schema");
 const router = express_1.default.Router();
-express_server_1.default.use(express_1.default.json);
-router.get('/', auth_controller_1.authenticateToken, controller.getAll);
-router.get('/{id}', controller.getById);
-router.post('/', (_req, res) => {
-    res.send('Saving a new turno');
-});
+router.get('/stream-queue', (0, validation_middlewares_1.default)(records_schema_1.getQueueCallAudio), controller.streamAudio);
 exports.default = router;

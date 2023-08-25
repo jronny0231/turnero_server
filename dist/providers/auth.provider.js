@@ -13,14 +13,27 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RefreshToken = exports.ResetPassword = exports.UpdatePassword = exports.UpdateAccount = exports.GetAccount = exports.Logout = exports.Login = void 0;
+exports.RefreshToken = exports.ResetPassword = exports.UpdatePassword = exports.UpdateAccount = exports.GetAccount = exports.Logout = exports.Login = exports.ConfirmPasswordForm = exports.LoginForm = void 0;
 const client_1 = require("@prisma/client");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jwt_helper_1 = require("../services/jwt.helper");
 const filtering_1 = require("../utils/filtering");
 const zod_1 = require("zod");
+const user_schema_1 = require("../schemas/user.schema");
+const path_1 = __importDefault(require("path"));
 const prisma = new client_1.PrismaClient;
 const DEFAULT_PASSWORD = (_a = process.env.DEFAULT_PASSWORD) !== null && _a !== void 0 ? _a : "%-d3fP4$$w0rd";
+const LoginForm = (_req, res) => {
+    const pathfile = path_1.default.join(path_1.default.resolve('./'), '/src/pages/loginForm.html');
+    console.log(pathfile);
+    res.sendFile(pathfile);
+};
+exports.LoginForm = LoginForm;
+const ConfirmPasswordForm = (_req, res) => {
+    const pathfile = path_1.default.join(path_1.default.resolve('./'), '/src/pages/resetPasswordForm.html');
+    return res.sendFile(pathfile);
+};
+exports.ConfirmPasswordForm = ConfirmPasswordForm;
 const Login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const body = req.body;
     try {
@@ -38,16 +51,18 @@ const Login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         if (user.activo === false) {
             return res.status(404).json({ success: false, message: 'El usuario no esa activo, hable con su administrador' });
         }
-        if (bcrypt_1.default.compareSync(DEFAULT_PASSWORD, user.password)) {
-            return res.redirect("/auth/reset-password");
+        const token = (0, jwt_helper_1.createToken)({
+            id: user.id,
+            type: 'USER',
+            username: user.username,
+            correo: user.correo
+        });
+        /*
+        if (bcrypt.compareSync(DEFAULT_PASSWORD, user.password)) {
+            return res.redirect(req.baseUrl + '/reset-password' + '?token=' + token)
         }
+        */
         if (bcrypt_1.default.compareSync(body.password, user.password)) {
-            const token = (0, jwt_helper_1.createToken)({
-                id: user.id,
-                type: 'USER',
-                username: user.username,
-                correo: user.correo
-            });
             yield prisma.usuarios.update({
                 where: { id: user.id },
                 data: { token }
@@ -125,7 +140,12 @@ const UpdateAccount = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             return res.status(403).json({ message: "Cannont change super user data." });
         }
         const result = yield prisma.usuarios.update({
-            where: { id, activo: true }, data, select: {
+            where: {
+                id,
+                activo: true
+            },
+            data: Object.assign(Object.assign({}, data), { agentes: undefined }),
+            select: {
                 nombres: true, username: true, correo: true, updatedAt: true
             }
         });
@@ -247,6 +267,9 @@ const getSuperUserLogin = (credentials) => {
         };
     }
     const { id, type, username, password, correo } = superUser;
+    if (username !== credentials.username) {
+        return null;
+    }
     const validacion = credentialsValidation({ username, password, correo });
     if (validacion.success === false) {
         console.error({ validations: validacion.data });
@@ -273,24 +296,12 @@ const getSuperUserLogin = (credentials) => {
 };
 const credentialsValidation = ({ username, password, passwordCheck, correo }) => {
     try {
-        zod_1.z.object({
-            correo: zod_1.z.string().email().max(60).optional(),
-            username: zod_1.z.string().min(4).max(15)
-                .regex(/^[a-zA-Z][a-zA-Z0-9]*_[a-zA-Z0-9]*$/, "Must start with uppercase and only include letters, numbers and one underscore")
-                .optional(),
-            password: zod_1.z.string().min(8).max(80)
-                .regex(/^(?=.*[a-z]).+$/, "Must contain at least one LOWERCASE letter")
-                .regex(/^(?=.*[A-Z]).+$/, "Must contain at least one UPPERCASE letter")
-                .regex(/^(?=.*[-+_!@#$%^&*., ?]).+$/, "Must contain at least one SPECIAL character")
-                .regex(/^(?=.*\d).+$/, "Must contain at least one NUMBER")
-                .optional(),
-            passwordCheck: zod_1.z.string().min(8).max(80)
-                .regex(/^(?=.*[a-z]).+$/, "Must contain at least one LOWERCASE letter")
-                .regex(/^(?=.*[A-Z]).+$/, "Must contain at least one UPPERCASE letter")
-                .regex(/^(?=.*[-+_!@#$%^&*., ?]).+$/, "Must contain at least one SPECIAL character")
-                .regex(/^(?=.*\d).+$/, "Must contain at least one NUMBER")
-                .optional(),
-        }).parse({
+        user_schema_1.userSchema.pick({
+            correo: true,
+            username: true,
+            password: true,
+        }).optional()
+            .parse({
             username,
             password,
             passwordCheck,
@@ -304,7 +315,7 @@ const credentialsValidation = ({ username, password, passwordCheck, correo }) =>
         if (error instanceof zod_1.ZodError) {
             const data = error.issues.map((issue, _, errors) => {
                 return {
-                    key: issue.path[0],
+                    key: issue.path.join(" > "),
                     messages: errors.filter(error => error.path === issue.path)
                         .map(error => error.message)
                 };

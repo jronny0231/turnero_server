@@ -9,8 +9,8 @@ exports.createQueueWithClient = zod_1.z.object({
         cliente: zod_1.z.object({
             tipo_identificacion_id: zod_1.z.number().gte(1).lte(3),
             identificacion: zod_1.z.string().min(9).max(20),
-            seguro_id: zod_1.z.number().gte(1).lte(2),
-            es_tutor: zod_1.z.boolean(),
+            seguro_id: zod_1.z.number().gte(1).lte(2).optional(),
+            es_tutor: zod_1.z.boolean().default(false).optional(),
         })
     })
 });

@@ -24,7 +24,7 @@ const secMiddleware = [activeToken_middlewares_1.authToken, activeUser_middlewar
  * RUTAS PARA CARGA DE DATOS INICIALES SEGUN TABLA DE CONFIGURACIONES
  */
 router.get('/init/web', secMiddleware);
-router.get('/init/display', smartTV_middlewares_1.getDisplayProps, (_req, res) => {
+router.get('/init/display/', smartTV_middlewares_1.getDisplayProps, (_req, res) => {
     const displayUUID = res.locals.display;
     const data = {
         display_uuid: displayUUID,
@@ -50,7 +50,7 @@ router.get('/init/display', smartTV_middlewares_1.getDisplayProps, (_req, res) =
  * RUTAS PARA SETEO DE DATOS INICIALES DE LA BASE DE DATOS
  * Tales como permisos
  */
-router.post('/init/system', secMiddleware, (req, res) => {
+router.post('/init/system/', secMiddleware, (req, res) => {
     const dataPayload = req.body();
     const authUser = res.locals.payloay;
     const commons = {
@@ -61,7 +61,7 @@ router.post('/init/system', secMiddleware, (req, res) => {
     console.log({ dataPayload, authUser });
     res.json({ success: true, data: commons });
 });
-router.post('/init/dictionaries', secMiddleware, (req, res) => {
+router.post('/init/dictionaries/', secMiddleware, (req, res) => {
     const dataPayload = req.body;
     const authUser = res.locals.payloay;
     const commons = {

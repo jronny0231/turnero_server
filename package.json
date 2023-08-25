@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev ./src/index.ts",
+    "prod": "node ./dist/index.js",
     "kill": "fuser -n tcp -k 5000"
   },
   "keywords": [],

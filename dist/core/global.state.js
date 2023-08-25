@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addNewQueueState = exports.setAttendingState = exports.getAttendingQueueByUserId = exports.getActiveQueueList = exports.setCallQueueState = exports.getCallQueueState = exports.setWaitingState = exports.GetAllAvailableServicesInSucursal = exports.getSucursalByUserId = exports.getQueuesListByService = exports.getServiceById = exports.refreshQueueState = exports.refreshPersistentData = void 0;
+exports.addNewQueueState = exports.setAttendingState = exports.getAttendingQueueByUserId = exports.getActiveQueueList = exports.setCallQueueState = exports.getCallQueueState = exports.setWaitingState = exports.GetAllAvailableServicesInSucursal = exports.getSucursalByUserId = exports.getQueuesListByService = exports.getServiceById = exports.refreshQueueState = exports.refreshPersistentData = exports.initData = void 0;
 const client_1 = require("@prisma/client");
 const filtering_1 = require("../utils/filtering");
 const time_helpers_1 = require("../utils/time.helpers");
@@ -17,6 +17,17 @@ const flow_manage_1 = require("./flow.manage");
 const QUEUE_STATE = [];
 const PERSISTENT_DATA = [];
 const prisma = new client_1.PrismaClient();
+/**
+ * Metodo con ejecucion asincrona para inicializar
+ * las constantes en caso de que esten vacias.
+ */
+const initData = () => {
+    if (PERSISTENT_DATA.length === 0)
+        (0, exports.refreshPersistentData)();
+    if (QUEUE_STATE.length === 0)
+        (0, exports.refreshQueueState)();
+};
+exports.initData = initData;
 /**
  * Metodo con ejecucion asincrona para actualizar
  * o setear los datos en la constante PERSISTENT_DATA
@@ -27,7 +38,16 @@ const refreshPersistentData = () => {
             const data = yield prisma.sucursales.findMany({
                 include: {
                     departamentos_sucursales: {
-                        select: { agentes: true,
+                        select: {
+                            agentes: {
+                                include: {
+                                    tipo_agente: {
+                                        select: {
+                                            grupo_servicio_id: true
+                                        }
+                                    }
+                                }
+                            },
                             servicios_departamentos_sucursales: {
                                 select: { servicio: true,
                                     departamento_sucursal: {
@@ -58,10 +78,15 @@ const refreshPersistentData = () => {
             }));
             if (data === null)
                 throw new Error("data got from database is empty.");
+            console.log({ data });
             PERSISTENT_DATA.length = 0;
             data.map(sucursal => {
                 const conjunto_agentes = sucursal.departamentos_sucursales
-                    .map(depsuc => depsuc.agentes)[0]
+                    .map(depsuc => {
+                    return Object.assign({}, depsuc.agentes.map(agente => {
+                        return Object.assign(Object.assign({}, agente), { grupo_servicio_id: agente.tipo_agente.grupo_servicio_id });
+                    }));
+                })[0]
                     .filter(entry => entry !== null);
                 const conjunto_servicios = sucursal.departamentos_sucursales
                     .map(depsuc => depsuc.servicios_departamentos_sucursales
@@ -85,6 +110,9 @@ const refreshPersistentData = () => {
             console.error("Error trying setting up PERSISTEN_DATA on state", { error });
             reject(error);
             return false;
+        }
+        finally {
+            console.log("Async refresh PERSISTENT_DATA", { length: PERSISTENT_DATA.length });
         }
     }));
 };
@@ -170,10 +198,7 @@ const refreshQueueState = () => {
                         include: {
                             servicio: true,
                             agente: {
-                                select: {
-                                    id: true,
-                                    nombre: true,
-                                    descripcion: true,
+                                include: {
                                     departamento_sucursal: {
                                         select: {
                                             sucursal: {
@@ -186,12 +211,7 @@ const refreshQueueState = () => {
                                                     }
                                                 }
                                             },
-                                            departamento: {
-                                                select: {
-                                                    id: true,
-                                                    descripcion: true
-                                                }
-                                            }
+                                            departamento: true
                                         }
                                     }
                                 }
@@ -216,7 +236,7 @@ const refreshQueueState = () => {
                 const atencion = turno.atenciones_turnos_servicios
                     .map((atencion, index) => {
                     var _a;
-                    return Object.assign(Object.assign({}, atencion), { state_id: index, servicio_name: atencion.servicio.descripcion, departamento_name: atencion.agente.departamento_sucursal.departamento.descripcion, agente_name: atencion.agente.nombre, estado_turno_name: (_a = turno.estado_turno) === null || _a === void 0 ? void 0 : _a.descripcion });
+                    return Object.assign(Object.assign({}, atencion), { state_id: index, servicio: atencion.servicio, departamento: atencion.agente.departamento_sucursal.departamento, agente: atencion.agente, estado_turno_name: (_a = turno.estado_turno) === null || _a === void 0 ? void 0 : _a.descripcion });
                 })
                     .filter(entry => entry !== null);
                 const entry = Object.assign(Object.assign({}, turno), { estado_turno_name: (_a = turno.estado_turno) === null || _a === void 0 ? void 0 : _a.descripcion, atencion,
@@ -230,6 +250,9 @@ const refreshQueueState = () => {
             console.error("Error trying setting up PERSISTEN_DATA on state", { error });
             reject(error);
             return false;
+        }
+        finally {
+            console.log("Async refresh QUEUE_STATE", { length: QUEUE_STATE.length });
         }
     }));
 };
@@ -320,10 +343,12 @@ exports.GetAllAvailableServicesInSucursal = GetAllAvailableServicesInSucursal;
  * @param param0
  * @returns
  */
-const setWaitingState = ({ usuario_id, esperando = true, servicios_destino_id }) => {
+const setWaitingState = ({ agente_id, usuario_id, esperando = true, servicios_destino_id }) => {
     const found = PERSISTENT_DATA.map(sucursal => {
         if (sucursal.conjunto_agentes !== undefined) {
-            return sucursal.conjunto_agentes.filter(agente => agente.usuario_id === usuario_id)[0];
+            return sucursal.conjunto_agentes.filter(agente => (agente.id === agente_id
+                && agente.usuario_id === usuario_id // Valida que el agente tenga relacion con el usuario logeado
+            ))[0];
         }
         return null;
     }).filter(entry => entry !== null)[0];
@@ -362,7 +387,7 @@ exports.setWaitingState = setWaitingState;
  * @returns
  */
 const getCallQueueState = ({ displayUUID }) => {
-    var _a, _b, _c, _d;
+    var _a, _b, _c;
     if (PERSISTENT_DATA.length === 0)
         (0, exports.refreshPersistentData)();
     if (QUEUE_STATE.length === 0)
@@ -381,7 +406,7 @@ const getCallQueueState = ({ displayUUID }) => {
     const firstUncalled = (_b = firstFilter.atencion
         .filter(entry => (entry.estatus_llamada === "UNCALLED"
         && entry.estado_turno_name !== undefined
-        && entry.estado_turno_name === 'NUEVA_SESION'))[0]) !== null && _b !== void 0 ? _b : null;
+        && ['NUEVA_SESION', 'ESPERANDO'].includes(entry.estado_turno_name)))[0]) !== null && _b !== void 0 ? _b : null;
     if (firstUncalled === null) {
         // Filtrar todos agente con columna esperando en true
         // en la sucursal y servicio correspondiente al turno
@@ -393,7 +418,7 @@ const getCallQueueState = ({ displayUUID }) => {
                 && sucursal.conjunto_pantallas !== undefined
                 && sucursal.id === firstFilter.sucursal_id) {
                 const servicio = sucursal.conjunto_servicios.filter(servicio => (servicio.id === firstFilter.servicio_actual_id))[0];
-                return sucursal.conjunto_agentes.filter(agente => ((agente.esperando_servicios_destino_id === undefined ? true :
+                return sucursal.conjunto_agentes.filter(agente => ((agente.esperando_servicios_destino_id === undefined ||
                     agente.esperando_servicios_destino_id.includes(firstFilter.servicio_destino_id))
                     && servicio.grupo_id === agente.grupo_servicio_id
                     && agente.esperando));
@@ -407,16 +432,20 @@ const getCallQueueState = ({ displayUUID }) => {
         findOrCreateAttendingReg({ turno, agente_id: firstFreeAgent.id, servicio_id: turno.servicio_actual_id });
         return null;
     }
+    const [letters, numbers] = (_c = firstFilter.secuencia_ticket.match(/([a-zA-Z]+)|(\d+)/g)) !== null && _c !== void 0 ? _c : [];
     const newCall = {
         id: firstUncalled.state_id,
         tittle: getDisplayCallTittle({ turno: firstFilter }),
         callStatus: firstUncalled.estatus_llamada,
         message: {
-            servicio: (_c = firstUncalled.servicio_name) !== null && _c !== void 0 ? _c : "",
-            departamento: (_d = firstUncalled.departamento_name) !== null && _d !== void 0 ? _d : ""
+            servicio: firstUncalled.servicio.descripcion,
+            departamento: firstUncalled.departamento.descripcion
         },
         voice: {
-            lenght: 3
+            uri: `/audio/stream-queue?
+                    letters=${letters}
+                    &number=${numbers}
+                    &department=${firstUncalled.departamento.siglas}`
         }
     };
     return newCall;

@@ -73,8 +73,10 @@ const validateActiveUser = (req, res, next) => __awaiter(void 0, void 0, void 0,
                 permit: Object.assign({}, rol_perm)
             };
         });
-        validatePermissions({ req, data });
-        next();
+        if (validatePermissions({ req, data }) === false) {
+            return res.status(403).json({ success: false, message: "You dont have permission to this action!" });
+        }
+        return next();
     }
     catch (error) {
         console.error("Internal server error on middleware checking user session.", { error });
@@ -86,12 +88,15 @@ const validateActiveUser = (req, res, next) => __awaiter(void 0, void 0, void 0,
 });
 exports.validateActiveUser = validateActiveUser;
 const validatePermissions = ({ req, data }) => {
-    const slug = req.path;
+    var _a;
+    const slug = req.originalUrl.split('/').slice(3).join('/').replace(/\d+/g, '#');
     const method = req.method.toUpperCase();
     const verb = verbConversion[method];
-    const hasPermittion = data.map(entry => {
+    const hasPermittion = (_a = data.map(entry => {
         return (entry.slug === slug
             && entry.permit[verb]);
-    }).filter(entry => entry)[0];
+    }).filter(entry => entry)[0]) !== null && _a !== void 0 ? _a : false;
+    console.log({ base: req.originalUrl, slug, method, verb, data, hasPermittion });
+    console.log({ data });
     return hasPermittion;
 };

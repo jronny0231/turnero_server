@@ -34,11 +34,12 @@ const validation_middlewares_1 = __importDefault(require("../middlewares/validat
 const user_schema_1 = require("../schemas/user.schema");
 const router = express_1.default.Router();
 const middlewares = [activeToken_middlewares_1.authToken, activeUser_middlewares_1.validateActiveUser];
-router.post('/login', (0, validation_middlewares_1.default)(user_schema_1.userCredential), Auth.Login);
-router.get('/refreshToken', middlewares, Auth.RefreshToken);
-router.delete('/logout', middlewares, Auth.Logout);
-router.get('/profile', middlewares, Auth.GetAccount);
-router.put('/profile', middlewares, (0, validation_middlewares_1.default)(user_schema_1.updateUser), Auth.UpdateAccount);
-router.put('/update-password/', middlewares, (0, validation_middlewares_1.default)(user_schema_1.passwordChange), Auth.UpdatePassword);
+router.post('/login/', (0, validation_middlewares_1.default)(user_schema_1.userCredential), Auth.Login);
+router.get('/refreshToken/', middlewares, Auth.RefreshToken);
+router.delete('/logout/', middlewares, Auth.Logout);
+router.get('/profile/', middlewares, Auth.GetAccount);
+router.put('/profile/', middlewares, (0, validation_middlewares_1.default)(user_schema_1.updateUser), Auth.UpdateAccount);
+router.put('/update-password/', middlewares, activeToken_middlewares_1.urlToken, (0, validation_middlewares_1.default)(user_schema_1.passwordChange), Auth.UpdatePassword);
+// router.get('/reset-password', Auth.ConfirmPasswordForm)
 router.put('/reset-password/:id', middlewares, Auth.ResetPassword);
 exports.default = router;

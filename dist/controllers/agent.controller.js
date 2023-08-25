@@ -11,7 +11,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DeleteAgent = exports.UpdateAgentQueueStatus = exports.UpdateAgent = exports.StoreNewAgent = exports.GetAgentById = exports.GetAllAgents = void 0;
 const client_1 = require("@prisma/client");
-const filtering_1 = require("../utils/filtering");
 const global_state_1 = require("../core/global.state");
 const prisma = new client_1.PrismaClient;
 const GetAllAgents = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -45,20 +44,7 @@ const StoreNewAgent = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     const data = req.body;
     try {
         yield prisma.$connect();
-        let newUserId = data.usuario_id;
-        if (data.usuario !== undefined) {
-            const userData = data.usuario.body;
-            const findUser = yield prisma.usuarios.findFirst({
-                where: { username: userData.username }
-            });
-            if (findUser !== null) {
-                return res.status(400).json({ success: false, message: "User data is already registred" });
-            }
-            const password = yield (0, filtering_1.encryptPassword)(userData.password);
-            newUserId = (yield prisma.usuarios.create({
-                data: Object.assign(Object.assign({}, userData), { password })
-            })).id;
-        }
+        const newUserId = data.usuario_id;
         if (newUserId === undefined) {
             return res.status(404).json({ message: 'Agente cant be created without user data or usuario_id' });
         }
@@ -98,10 +84,10 @@ const UpdateAgentQueueStatus = (req, res) => {
             return res.status(404).json({ success: false,
                 message: `Agente with usuario id ${usuario_id} availability was not updated` });
         }
-        return res.json({ success: true, message: `Agente with usuario id ${usuario_id} availability was updated!` });
+        return res.json({ success: true, message: `Agente with id ${data.agente_id} availability was updated!` });
     }
     catch (error) {
-        return res.status(500).json({ message: `Server status error updating Agente availability usuario_id: ${usuario_id} data.`, data: error });
+        return res.status(500).json({ message: `Server status error updating Agente availability with id: ${data.agente_id} data.`, data: error });
     }
 };
 exports.UpdateAgentQueueStatus = UpdateAgentQueueStatus;

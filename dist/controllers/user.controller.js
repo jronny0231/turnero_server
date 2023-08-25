@@ -44,14 +44,23 @@ exports.GetUserById = GetUserById;
 const StoreNewUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = req.body;
     try {
+        yield prisma.$connect();
         const password = yield (0, filtering_1.encryptPassword)(data.password);
         const usuario = yield prisma.usuarios.create({
-            data: Object.assign(Object.assign({}, data), { password }),
+            data: Object.assign(Object.assign({}, data), { password, agentes: undefined }),
             select: {
                 id: true,
                 username: true,
+                agentes: true
             }
-        }).finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
+        });
+        if (data.agentes !== undefined) {
+            usuario.agentes = yield prisma.$transaction([
+                ...data.agentes.map(agente => prisma.agentes.create({
+                    data: Object.assign(Object.assign({}, agente), { usuario_id: usuario.id })
+                }))
+            ]);
+        }
         return res.json({ success: true, message: 'Usuario data was successfully store', data: usuario });
     }
     catch (error) {
@@ -62,6 +71,9 @@ const StoreNewUser = (req, res) => __awaiter(void 0, void 0, void 0, function* (
                 return res.status(400).send({ error: 'Same user data already registred.', message: error.message });
         }
         return res.status(500).json({ message: 'Server status error creating Grupos_servicios data.', data: error });
+    }
+    finally {
+        yield prisma.$disconnect();
     }
 });
 exports.StoreNewUser = StoreNewUser;

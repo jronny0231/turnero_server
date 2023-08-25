@@ -7,6 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const express_fileupload_1 = __importDefault(require("express-fileupload"));
+const path_1 = __importDefault(require("path"));
 const App = (0, express_1.default)();
 // Load application configuration from configuration .env file
 require("dotenv").config();
@@ -22,7 +23,7 @@ App.use((0, cors_1.default)({
 // Express Middleware settings
 App.use(express_1.default.json());
 App.use(express_1.default.urlencoded({ extended: false }));
-App.use('/static', express_1.default.static('public'));
+App.use(express_1.default.static(path_1.default.resolve('./public')));
 App.use((0, express_fileupload_1.default)({
     useTempFiles: true,
     tempFileDir: '/tmp/upload/'
