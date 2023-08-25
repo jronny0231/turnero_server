@@ -4,9 +4,9 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "build": "tsc",
     "dev": "ts-node-dev ./src/index.ts",
-    "prod": "node ./dist/index.js",
+    "start": "ts-node ./dist/app.js",
+    "build": "tsc -p .",
     "kill": "fuser -n tcp -k 5000"
   },
   "keywords": [],
