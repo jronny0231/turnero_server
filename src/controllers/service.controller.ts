@@ -9,12 +9,12 @@ export const GetAllServices = async (_req: Request, res: Response) => {
     try {
         const servicios: Servicios[] = await prisma.servicios.findMany().finally(async () => await prisma.$disconnect())
         
-        if (servicios.length === 0) return res.status(404).json({message: 'Clients data was not found'})
+        if (servicios.length === 0) return res.status(404).json({message: 'Services data was not found'})
         
-        return res.json({success: true, message: 'Clients data was successfully recovery', data: servicios})
+        return res.json({success: true, message: 'Services data was successfully recovery', data: servicios})
 
     } catch (error) {
-        return res.status(500).json({message: 'Server status error getting Clients data.', data: error})
+        return res.status(500).json({message: 'Server status error getting Services data.', data: error})
     }
 }
 
