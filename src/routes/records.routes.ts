@@ -5,6 +5,6 @@ import { getQueueCallAudio } from '../schemas/records.schema';
 
 const router = express.Router()
 
-router.get('/stream-queue', validateWith(getQueueCallAudio), controller.streamAudio)
+router.get('/stream-queue/:uuid', validateWith(getQueueCallAudio), controller.getCallingAudiobyDisplay)
 
 export default router

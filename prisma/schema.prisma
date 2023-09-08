@@ -87,7 +87,6 @@ model Servicios {
   estatus          Boolean?         @default(true)
 
   turnos                             Turnos[]
-  servicios_sucursales               Servicios_sucursales[]
   atenciones_turno_servicio          Atenciones_turnos_servicios[]
   grabaciones_servicios              Grabaciones_servicios[]
   servicios_seguros                  Servicios_seguros[]
@@ -131,18 +130,6 @@ model Razones_Cancelados {
   descripcion String @db.VarChar(100)
 
   Atenciones_Turnos_Servicios Atenciones_turnos_servicios[]
-}
-
-model Servicios_sucursales {
-  servicio            Servicios  @relation(fields: [servicio_id], references: [id])
-  servicio_id         Int
-  sucursal            Sucursales @relation(fields: [sucursal_id], references: [id])
-  sucursal_id         Int
-  disponible          Boolean?   @default(true)
-  razon_no_disponible String     @db.VarChar(40)
-  estatus             Boolean?   @default(true)
-
-  @@id([servicio_id, sucursal_id])
 }
 
 model Opciones_flujo {
@@ -290,7 +277,6 @@ model Sucursales {
   updatedAt    DateTime?   @updatedAt
 
   turnos                   Turnos[]
-  servicios_sucursales     Servicios_sucursales[]
   departamentos_sucursales Departamentos_sucursales[]
   horarios_sucursales      Horarios_sucursales[]
   visitas_agendadas        Visitas_agendadas[]
@@ -343,6 +329,8 @@ model Servicios_departamentos_sucursales {
   servicio_id                 Int
   departamento_sucursal       Departamentos_sucursales @relation(fields: [departamento_sucursal_refId], references: [refId])
   departamento_sucursal_refId Int
+  disponible                  Boolean?                 @default(true)
+  razon_no_disponible         String?                  @db.VarChar(100)
   estatus                     Boolean?                 @default(true)
 
   @@id([servicio_id, departamento_sucursal_refId])

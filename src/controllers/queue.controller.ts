@@ -6,7 +6,6 @@ import { getUnrelatedFirstService } from '../core/flow.manage';
 import { newQueueWithClientType, updateQueueStateType } from '../schemas/queue.schema';
 
 
-
 const prisma = new PrismaClient();
 
 
@@ -68,10 +67,7 @@ export const getActiveQueuesByDisplayId = (_req: Request, res: Response) => {
         const displayUUID: UUID = res.locals.display
         const turnos = getActiveQueueList({displayUUID})
 
-        if (turnos === null)
-            return res.status(404).json({success: false, message: 'No active Turnos to display', data: turnos}) 
-
-        const data = turnos.map((turno) => {
+        const data = turnos?.map((turno) => {
             return {
                 id: turno.id,
                 secuencia_ticket: turno.secuencia_ticket,

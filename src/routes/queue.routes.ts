@@ -19,8 +19,8 @@ const middlewares: middlewaresType = [authToken, validateActiveUser];
  * con los siguientes campos: {id, secuencia, servicio_destino, departamento, estado}
  */
 router.get('/display/', getDisplayProps, controller.getActiveQueuesByDisplayId);
-router.get('/display/calling/', getDisplayProps, controller.getNewCallingsByDisplayId);
-router.post('/display/calling/:id', getDisplayProps, controller.updateCallingsByDisplayId);
+router.get('/display/callData/', getDisplayProps, controller.getNewCallingsByDisplayId);
+router.post('/display/callData/:id', getDisplayProps, controller.updateCallingsByDisplayId);
 
 router.get('/active/', middlewares, controller.GetToAttendQueue);
 router.put('/active/', middlewares, validateWith(updateQueueState), controller.UpdateStateQueue);

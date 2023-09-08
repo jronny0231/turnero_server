@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient, Servicios } from '@prisma/client';
 import { GetAllAvailableServicesInSucursal, getServiceById, getSucursalByUserId, refreshPersistentData } from '../core/global.state';
-import { createServicesType } from '../schemas/service.schema';
+import { createServicesType, updateServicesType } from '../schemas/service.schema';
 
 const prisma = new PrismaClient;
 
@@ -58,7 +58,7 @@ export const GetServiceById = (req: Request, res: Response) => {
 }
 
 export const StoreNewServices = async (req: Request, res: Response) => {
-    const data: createServicesType = req.body;
+    const data: createServicesType['body'] = req.body;
 
     try {
         const result = await prisma.$transaction(
@@ -77,10 +77,34 @@ export const StoreNewServices = async (req: Request, res: Response) => {
     }
 }
 
-export const UpdateService = ((_req: Request, res: Response) => {
-    return res.json('Update a Servicios');
-})
+export const UpdateService = async (req: Request, res: Response) => {
+    const id: updateServicesType['params']['id'] = Number(req.params.id)
+    const data: updateServicesType['body'] = req.body;
 
-export const DeleteService = ((_req: Request, res: Response) => {
-    return res.json('Delete a Servicios');
-})
+    try {
+        const result = await prisma.servicios.update({
+            where: { id }, data
+        }).finally(async () => await prisma.$disconnect())
+
+        return res.json({success: true, message: 'Servicio data was successfully updated', data: result})
+
+    } catch (error) {
+        return res.status(500).json({message: `Server status error updating Servicio id: ${id} data.`, data: error})
+    }
+}
+
+export const DeleteService = async (req: Request, res: Response) => {
+    const id: updateServicesType['params']['id'] = Number(req.params.id)
+
+    try {
+        const result = await prisma.servicios.delete({
+            where: { id }
+        }).finally( async () => await prisma.$disconnect())
+
+        return res.json({success: true, message:"Servicio was update successfully!", data: result})
+
+    } catch (error) {
+        console.error(`Error trying delete Servicio id: ${id}`, {error}) 
+        return res.status(404).json({success: false, message: `Error trying delete Servicio id: ${id}`, data: error});
+    }
+}

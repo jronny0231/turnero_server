@@ -7,7 +7,7 @@ import {
 } from '@aws-sdk/client-s3';
 import fs from 'fs';
 
-const AWS_BUCKET_NAME: string = process.env.AWS_BUCKET_NAM ?? "";
+const AWS_BUCKET_NAME: string = process.env.AWS_BUCKET_NAME ?? "";
 const AWS_BUCKET_REGION: string = process.env.AWS_BUCKET_REGION ?? "";
 const AWS_PUBLIC_KEY: string = process.env.AWS_PUBLIC_KEY ?? "";
 const AWS_SECRET_KEY: string = process.env.AWS_SECRET_KEY ?? "";
@@ -46,11 +46,13 @@ export const getFileList = async () => {
         Bucket: AWS_BUCKET_NAME
     })
 
+    console.log({AWS_BUCKET_NAME})
+
     const result = await client.send(command)
     return result.Contents
 }
 
-export const getFile = async ({fileKey}: {fileKey: string}) => {
+export const getFile = async (fileKey: string) => {
    try {
         const command = new GetObjectCommand({
             Bucket: AWS_BUCKET_NAME,

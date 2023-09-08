@@ -18,7 +18,7 @@ export default (schema: AnyZodObject) =>
             next()
         } catch (error) {
             if (error instanceof ZodError) {
-                const uri = req.path
+                const uri = req.originalUrl
                 const method = req.method
                 const data = error.issues.map((issue,_,errors) => {
                     return {

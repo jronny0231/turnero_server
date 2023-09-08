@@ -1,4 +1,4 @@
-import { Servicios, Turnos, Clientes, Departamentos, Agentes } from "@prisma/client"
+import { Servicios, Turnos, Clientes, Departamentos, Agentes, turno_llamada } from "@prisma/client"
 import { UsuarioTypes } from "./user"
 
 export interface ExportableQueuesType extends Turnos {
@@ -41,13 +41,10 @@ export interface PantallaTurnos extends Partial<Turnos> {
 export type DisplayQueue = {
     id: number,
     tittle: string,
-    callStatus: CallStatus
+    callStatus: turno_llamada
     message: {
         servicio: string
         departamento: string
-    },
-    voice: {
-        uri: string
     }
 };
 

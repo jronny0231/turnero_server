@@ -2,12 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import fileUpload from 'express-fileupload';
 import path from 'path';
+import { config } from 'dotenv';
 
 
 const App = express();
 
 // Load application configuration from configuration .env file
-require("dotenv").config()
+config()
 
 const PORT: number = Number(process.env.PORT ?? 0);
 
