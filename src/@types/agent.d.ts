@@ -9,11 +9,3 @@ export interface AgentWithUser extends Agentes {
         rol_id: number
     }
 }
-
-export interface ClientWithSeguro extends Clientes {
-    seguro: {
-        nombre: string
-        nombre_corto: string
-        siglas: string
-    }
-}
