@@ -241,10 +241,10 @@ export const DeleteDepartment = async (req: Request, res: Response) => {
             where: { id }
         }).finally( async () => await prisma.$disconnect())
 
-        return res.json({success: true, message:"Sucursal was update successfully!", data: result})
+        return res.json({success: true, message:"Departamento was deleted successfully!", data: result})
 
     } catch (error) {
-        console.error(`Error trying delete Sucursal id: ${id}`, {error}) 
-        return res.status(404).json({success: false, message: `Error trying delete Sucursal id: ${id}`, data: error});
+        console.error(`Error trying delete Departamento id: ${id}`, {error}) 
+        return res.status(404).json({success: false, message: `Error trying delete Departamento id: ${id}`, data: error});
     }
 }

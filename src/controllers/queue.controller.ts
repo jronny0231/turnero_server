@@ -3,7 +3,7 @@ import { PrismaClient, Turnos, turno_llamada } from '@prisma/client';
 import { UUID } from 'crypto';
 import { getAttendingQueueByUserId, addNewQueueState, getActiveQueueList, getCallQueueState, getQueuesListByService, getServiceById, setAttendingState, setCallQueueState } from '../core/global.state';
 import { getUnrelatedFirstService } from '../core/flow.manage';
-import { newQueueWithClientType, updateQueueStateType } from '../schemas/queue.schema';
+import { newQueueWithClientType, updateAttendingQueueStateType } from '../schemas/queue.schema';
 
 
 const prisma = new PrismaClient();
@@ -162,15 +162,15 @@ export const StoreNewQueue = (req: Request, res: Response) => {
 
                 const cliente = async () => {
                     const clienteFound = await prisma.clientes.findFirst({
-                        where: {  identificacion: body.cliente.identificacion  }
+                        where: {  identificacion: body.cliente.body.identificacion }
                     })
                     if (clienteFound) return clienteFound
 
                     return await prisma.clientes.create({
                         data: {
-                            ...body.cliente,
+                            ...body.cliente.body,
                             registrado_por_id,
-                            nombre_tutorado: (body.cliente.es_tutor ? 'sin_definir' : undefined)
+                            nombre_tutorado: (body.cliente.body.es_tutor ? 'sin_definir' : undefined)
                         }
                     })
                 }
@@ -241,25 +241,24 @@ export const GetToAttendQueue = ( res: Response) => {
 
 }
 
-export const UpdateStateQueue = async (req: Request, res: Response) => {
-    const body: updateQueueStateType['body'] = req.body;
-    const {id: turno_id} = req.params as unknown as updateQueueStateType['params']
+export const UpdateStateAttendingQueue = async (req: Request, res: Response) => {
+    const body: updateAttendingQueueStateType['body'] = req.body;
     
     try {
         if (body.servicio_id === undefined || body.agente_id === undefined || body.estado_turno_id === undefined){
             return res.status(404).json({success: false, message: "Data receive is incomplet or bad formed"})
         }
 
-        const isUpdate = await setAttendingState({...body, turno_id})
+        const isUpdate = await setAttendingState({...body})
 
         if (isUpdate) return res.json({success: true, message:"Turno status was updated successfully!", data: isUpdate})
 
         return res.status(404).json({success: false, message:"Turno status could not updated", data: isUpdate})
         
     } catch (error) {
-        console.error(`Error trying update Status Turno id: ${turno_id} with status_turno_id: ${body.estado_turno_id}`, {error}) 
+        console.error(`Error trying update Status Turno id: ${body.turno_id} with status_turno_id: ${body.estado_turno_id}`, {error}) 
 
-        return res.status(500).json({success: false, message: `Error trying update Status Turno id: ${turno_id} with status_turno_id: ${body.estado_turno_id}`, data: error})
+        return res.status(500).json({success: false, message: `Error trying update Status Turno id: ${body.turno_id} with status_turno_id: ${body.estado_turno_id}`, data: error})
     }
 }
 

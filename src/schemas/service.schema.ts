@@ -1,11 +1,16 @@
 import { z } from 'zod'
 
 const serviceSchema = z.object({
+    id: z.coerce.number().gte(1),
     descripcion: z.string().min(1).max(50),
     nombre_corto: z.string().min(1).max(20),
     prefijo: z.string().min(1).max(3),
     grupo_id: z.number().gte(3).lte(7),
     es_seleccionable: z.boolean().optional(),
+})
+
+export const createService = z.object({
+    body: serviceSchema.omit({ id: true })
 })
 
 export const createServices = z.object({
@@ -16,7 +21,7 @@ export const updateServices = z.object({
     params: z.object({
         id: z.coerce.number().gte(1)
     }),
-    body: serviceSchema.partial()
+    body: serviceSchema.omit({ id: true }).partial()
 })
 
 export const discriminateFilterService = z.discriminatedUnion("serviceField", [
@@ -36,5 +41,6 @@ export const discriminateFilterService = z.discriminatedUnion("serviceField", [
     })
 ])
 
+export type createServiceType = z.infer<typeof createService>
 export type createServicesType = z.infer<typeof createServices>
 export type updateServicesType = z.infer<typeof updateServices>

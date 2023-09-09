@@ -141,11 +141,13 @@ export const refreshPersistentData = () => {
                         some: {
                             agentes: { some: { estatus: true } },
                             servicios_departamentos_sucursales: {
-                                some: { servicio: { estatus: true } }
+                                some: {
+                                    disponible: true,
+                                    servicio: { estatus: true }
+                                }
                             }
                         }
                     },
-                    servicios_sucursales: { some: { disponible: true } },
                     pantallas: { some: { estatus: true } }
                 }
             })

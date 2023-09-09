@@ -23,7 +23,7 @@ router.get('/display/callData/', getDisplayProps, controller.getNewCallingsByDis
 router.post('/display/callData/:id', getDisplayProps, controller.updateCallingsByDisplayId);
 
 router.get('/active/', middlewares, controller.GetToAttendQueue);
-router.put('/active/', middlewares, validateWith(updateQueueState), controller.UpdateStateQueue);
+router.put('/active/', middlewares, validateWith(updateQueueState), controller.UpdateStateAttendingQueue);
 
 router.get('/', middlewares, controller.GetAllQueues);
 router.get('/:id', middlewares, controller.GetQueueById);
