@@ -9,6 +9,9 @@
     "build": "tsc -p .",
     "kill": "fuser -n tcp -k 5000"
   },
+  "engines": {
+    "node": ">=16 <=18"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
