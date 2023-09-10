@@ -54,14 +54,39 @@ const StoreNewUser = (req, res) => __awaiter(void 0, void 0, void 0, function* (
                 agentes: true
             }
         });
-        if (data.agentes !== undefined) {
-            usuario.agentes = yield prisma.$transaction([
-                ...data.agentes.map(agente => prisma.agentes.create({
-                    data: Object.assign(Object.assign({}, agente), { usuario_id: usuario.id })
-                }))
-            ]);
+        if (data.agente === undefined) {
+            if (data.agente_id === undefined) {
+                return res.json({ success: true, message: 'Usuario without Agente data was successfully store', data: usuario });
+            }
+            const agente = yield prisma.agentes.update({
+                where: { id: data.agente_id },
+                data: { usuario_id: usuario.id }
+            });
+            return res.json({ success: true, message: `Usuario with Agente_id ${agente.id} data was successfully store`, data: { usuario, agente } });
         }
-        return res.json({ success: true, message: 'Usuario data was successfully store', data: usuario });
+        let tipo_agente_id = 0;
+        if (data.agente.body.tipo_agente === undefined) {
+            if (data.agente.body.tipo_agente_id === undefined) {
+                return res.status(400).json({ success: false, message: `Could not create agente without agente_tipo_id or agente_tipo data` });
+            }
+            const tipo_agente = yield prisma.tipos_agentes.findFirst({
+                where: { id: data.agente.body.tipo_agente_id }
+            });
+            if (tipo_agente === null) {
+                return res.status(400).json({ success: false, message: `Could not create agente because agente_tipo_id not match` });
+            }
+            tipo_agente_id = tipo_agente.id;
+        }
+        else {
+            const tipo_agente = yield prisma.tipos_agentes.create({
+                data: Object.assign({}, data.agente.body.tipo_agente)
+            });
+            tipo_agente_id = tipo_agente.id;
+        }
+        const agente = yield prisma.agentes.create({
+            data: Object.assign(Object.assign({}, data.agente.body), { usuario_id: usuario.id, tipo_agente: undefined, tipo_agente_id })
+        });
+        return res.json({ success: true, message: `Usuario with Agente_id ${agente.id} data was successfully store`, data: { usuario, agente } });
     }
     catch (error) {
         if (error instanceof library_1.PrismaClientKnownRequestError) {

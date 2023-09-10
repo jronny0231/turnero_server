@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { agentSchema } from './agent.schema'
+import { createAgent } from './agent.schema'
 
 export const userSchema = z.object({
     nombres: z.string().min(1).max(50),
@@ -20,11 +20,15 @@ export const userSchema = z.object({
                 .regex(/^(?=.*\d).+$/,
                     "Must contain at least one NUMBER"),
     rol_id: z.number().min(1),
-    agentes: z.tuple([agentSchema]).optional(),
+    agente_id: z.coerce.number().gte(1),
+    agente: createAgent
 })
 
 export const createUser = z.object({
-    body: userSchema
+    body: userSchema.partial({
+        agente: true,
+        agente_id: true,
+    })
 })
 
 export const updateUser = z.object({
@@ -36,7 +40,7 @@ export const updateUser = z.object({
         username: true,
         correo: true,
         rol_id: true,
-        agentes: true
+        agente: true
     }).partial()    
 })
 

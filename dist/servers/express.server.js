@@ -8,9 +8,10 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const express_fileupload_1 = __importDefault(require("express-fileupload"));
 const path_1 = __importDefault(require("path"));
+const dotenv_1 = require("dotenv");
 const App = (0, express_1.default)();
 // Load application configuration from configuration .env file
-require("dotenv").config();
+(0, dotenv_1.config)();
 const PORT = Number((_a = process.env.PORT) !== null && _a !== void 0 ? _a : 0);
 if (PORT === 0) {
     console.error({ message: "Port number not set" });

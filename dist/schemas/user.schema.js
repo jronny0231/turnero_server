@@ -14,10 +14,14 @@ exports.userSchema = zod_1.z.object({
         .regex(/^(?=.*[-+_!@#$%^&*., ?]).+$/, "Must contain at least one SPECIAL character")
         .regex(/^(?=.*\d).+$/, "Must contain at least one NUMBER"),
     rol_id: zod_1.z.number().min(1),
-    agentes: zod_1.z.tuple([agent_schema_1.agentSchema]).optional(),
+    agente_id: zod_1.z.coerce.number().gte(1),
+    agente: agent_schema_1.createAgent
 });
 exports.createUser = zod_1.z.object({
-    body: exports.userSchema
+    body: exports.userSchema.partial({
+        agente: true,
+        agente_id: true,
+    })
 });
 exports.updateUser = zod_1.z.object({
     params: zod_1.z.object({
@@ -27,7 +31,7 @@ exports.updateUser = zod_1.z.object({
         username: true,
         correo: true,
         rol_id: true,
-        agentes: true
+        agente: true
     }).partial()
 });
 exports.userCredential = zod_1.z.object({

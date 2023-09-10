@@ -114,9 +114,7 @@ const getAvailableRelatedServices = async ({turno}: {turno?: Turnos}) => {
             },
             orderBy: { prioridad: 'asc' }
         })
-        .finally(async () => {
-            await prisma.$disconnect()
-        })
+        
         
     } catch (error) {
         console.error(`Error trying get services in Servicios_Seguros, turno_id: ${turno?.id}`, {error})
@@ -128,9 +126,7 @@ const getAllRelatedServices = async () => {
     try {
 
         const listas = await prisma.servicios_dependientes.findMany()
-        .finally(async () => {
-            await prisma.$disconnect()
-        })
+        
         if (listas.length = 0) return null
 
         return listas.map(lista => {
@@ -151,14 +147,13 @@ const getAllRelatedServices = async () => {
     }
 }
 */
+
 const getRelatedServicesListByQueue = async ({turno_id}: {turno_id: number}) => {
     try {
         const lista = await prisma.servicios_dependientes.findFirst({
             where: { turno_id },
         })
-        .finally(async () => {
-            await prisma.$disconnect()
-        })
+        
         if (lista === null) return null
 
         if (
@@ -246,9 +241,11 @@ export const getUnrelatedFirstService = async ({seguro_id, sucursal_id, servicio
                 seguro_id: seguro_id ?? 0,
                 servicio_destino_id: servicio_destino_id,
                 servicio: {
-                    servicios_sucursales: {
+                    Servicios_departamentos_sucursales: {
                         some: {
-                            sucursal_id: sucursal_id
+                            departamento_sucursal: {
+                                sucursal_id: sucursal_id
+                            }
                         }
                     }
                 }
@@ -301,9 +298,7 @@ export const addNewFlowList = async ({turno}: {turno: Turnos}): Promise<Servicio
                 serie_servicios
             }
         })
-        .finally(async () => {
-            await prisma.$disconnect()
-        })
+        
 
     } catch (error) {
         return null

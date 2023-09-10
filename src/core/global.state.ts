@@ -469,7 +469,6 @@ export const GetAllAvailableServicesInSucursal = ({sucursal_id, grupo_id, es_sel
 }
 
 type agentStateType = {
-    agente_id: number,
     usuario_id: number,
     servicios_destino_id?: Array <number>,
     esperando?: boolean
@@ -481,16 +480,16 @@ type agentStateType = {
  * @param param0 
  * @returns 
  */
-export const setWaitingState = ({agente_id, usuario_id, esperando = true, servicios_destino_id}: agentStateType): boolean => {
-    const found = PERSISTENT_DATA.map(sucursal => {
-        if (sucursal.conjunto_agentes !== undefined){
-            return sucursal.conjunto_agentes.filter(agente => (
-                agente.id === agente_id
-                && agente.usuario_id === usuario_id // Valida que el agente tenga relacion con el usuario logeado
-            ))[0]
-        }
-        return null
-    }).filter(entry => entry !== null)[0]
+export const setWaitingState = ({usuario_id, esperando = true, servicios_destino_id}: agentStateType): boolean => {
+    const found = PERSISTENT_DATA
+        .map(sucursal => {
+            if (sucursal.conjunto_agentes !== undefined){
+                return sucursal.conjunto_agentes.filter(agente => (
+                    agente.usuario_id === usuario_id // Valida que el agente tenga relacion con el usuario logeado
+                ))[0]
+            }
+            return null
+        }).filter(entry => entry !== null)[0]
 
     if (found === null) return false
     

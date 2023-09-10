@@ -14,8 +14,10 @@ const client_1 = require("@prisma/client");
 const filtering_1 = require("../utils/filtering");
 const time_helpers_1 = require("../utils/time.helpers");
 const flow_manage_1 = require("./flow.manage");
+const audio_manager_1 = require("../services/audio.manager");
 const QUEUE_STATE = [];
 const PERSISTENT_DATA = [];
+const tempStatus = new Map;
 const prisma = new client_1.PrismaClient();
 /**
  * Metodo con ejecucion asincrona para inicializar
@@ -65,11 +67,13 @@ const refreshPersistentData = () => {
                         some: {
                             agentes: { some: { estatus: true } },
                             servicios_departamentos_sucursales: {
-                                some: { servicio: { estatus: true } }
+                                some: {
+                                    disponible: true,
+                                    servicio: { estatus: true }
+                                }
                             }
                         }
                     },
-                    servicios_sucursales: { some: { disponible: true } },
                     pantallas: { some: { estatus: true } }
                 }
             })
@@ -343,11 +347,11 @@ exports.GetAllAvailableServicesInSucursal = GetAllAvailableServicesInSucursal;
  * @param param0
  * @returns
  */
-const setWaitingState = ({ agente_id, usuario_id, esperando = true, servicios_destino_id }) => {
-    const found = PERSISTENT_DATA.map(sucursal => {
+const setWaitingState = ({ usuario_id, esperando = true, servicios_destino_id }) => {
+    const found = PERSISTENT_DATA
+        .map(sucursal => {
         if (sucursal.conjunto_agentes !== undefined) {
-            return sucursal.conjunto_agentes.filter(agente => (agente.id === agente_id
-                && agente.usuario_id === usuario_id // Valida que el agente tenga relacion con el usuario logeado
+            return sucursal.conjunto_agentes.filter(agente => (agente.usuario_id === usuario_id // Valida que el agente tenga relacion con el usuario logeado
             ))[0];
         }
         return null;
@@ -387,7 +391,7 @@ exports.setWaitingState = setWaitingState;
  * @returns
  */
 const getCallQueueState = ({ displayUUID }) => {
-    var _a, _b, _c;
+    var _a, _b;
     if (PERSISTENT_DATA.length === 0)
         (0, exports.refreshPersistentData)();
     if (QUEUE_STATE.length === 0)
@@ -432,7 +436,6 @@ const getCallQueueState = ({ displayUUID }) => {
         findOrCreateAttendingReg({ turno, agente_id: firstFreeAgent.id, servicio_id: turno.servicio_actual_id });
         return null;
     }
-    const [letters, numbers] = (_c = firstFilter.secuencia_ticket.match(/([a-zA-Z]+)|(\d+)/g)) !== null && _c !== void 0 ? _c : [];
     const newCall = {
         id: firstUncalled.state_id,
         tittle: getDisplayCallTittle({ turno: firstFilter }),
@@ -440,15 +443,31 @@ const getCallQueueState = ({ displayUUID }) => {
         message: {
             servicio: firstUncalled.servicio.descripcion,
             departamento: firstUncalled.departamento.descripcion
-        },
-        voice: {
-            uri: `/audio/stream-queue?
-                    letters=${letters}
-                    &number=${numbers}
-                    &department=${firstUncalled.departamento.siglas}`
         }
     };
-    return newCall;
+    if (tempStatus.has(displayUUID) === false) {
+        tempStatus.set(displayUUID, 'NONE');
+    }
+    if (newCall.callStatus !== 'UNCALLED') {
+        return null;
+    }
+    if (tempStatus.get(displayUUID) === 'READY') {
+        return newCall;
+    }
+    if (tempStatus.get(displayUUID) === 'NONE') {
+        tempStatus.set(displayUUID, 'LOADING');
+        (0, audio_manager_1.prepareCallingAudio)({
+            displayUUID,
+            params: prepareCallAudioInfo(firstFilter.secuencia_ticket, firstUncalled.departamento.siglas)
+        }).then(audioResult => {
+            console.log({ audioResult });
+            tempStatus.set(displayUUID, 'READY');
+        }).catch(error => {
+            console.log({ error });
+            tempStatus.set(displayUUID, 'NONE');
+        });
+    }
+    return null;
 };
 exports.getCallQueueState = getCallQueueState;
 /**
@@ -782,6 +801,54 @@ const findOrCreateAttendingReg = ({ turno, agente_id, servicio_id }) => {
             throw new Error("Error: cannot create a new Atencio_Turno_Servicio");
         return created;
     }))().then(() => (0, exports.refreshQueueState)());
+};
+const prepareCallAudioInfo = (secuencia_ticket, siglas_departamento, prefijo_servicio) => {
+    var _a, _b;
+    const [letters, numbers] = (_a = secuencia_ticket.match(/([a-zA-Z]+)|(\d+)/g)) !== null && _a !== void 0 ? _a : [];
+    const initDing = {
+        pos: 0,
+        type: 'utils',
+        name: 'ding'
+    };
+    const lettersMap = (_b = letters === null || letters === void 0 ? void 0 : letters.toUpperCase().split('').map((letter, i) => ({
+        pos: i + 1,
+        type: 'letters',
+        name: letter
+    }))) !== null && _b !== void 0 ? _b : [];
+    const numbersMap = [];
+    const deptMap = {
+        pos: 6,
+        type: 'department',
+        name: siglas_departamento.toUpperCase()
+    };
+    const servMap = prefijo_servicio ? {
+        pos: 8,
+        type: 'services',
+        name: prefijo_servicio.toUpperCase()
+    } : null;
+    const value = Number(numbers);
+    const decimalsAfterTen = [2, 3, 4, 5, 6, 7, 8, 9].map(num => num * 10);
+    if (value <= 9) {
+        numbersMap.push({ pos: 4, type: 'numbers', name: '0' });
+        numbersMap.push({ pos: 5, type: 'numbers', name: value.toString() });
+    }
+    if (value >= 10 && value <= 20 || decimalsAfterTen.includes(value)) {
+        numbersMap.push({ pos: 4, type: 'numbers', name: value.toString() });
+    }
+    const [decimal, unit] = value.toString().split("");
+    if (value >= 21 && value <= 29) {
+        numbersMap.push({ pos: 4, type: 'numbers', name: decimal + "X" });
+        numbersMap.push({ pos: 5, type: 'numbers', name: unit });
+    }
+    if (value > 30 && decimalsAfterTen.includes(value) === false) {
+        numbersMap.push({ pos: 4, type: 'numbers', name: decimal + "0" });
+        numbersMap.push({ pos: 5, type: 'numbers', name: "X" + unit });
+    }
+    const joinObjects = [...lettersMap, ...numbersMap, deptMap, initDing];
+    if (servMap) {
+        joinObjects.push({ pos: 7, type: 'utils', name: 'PARA' }, servMap);
+    }
+    return joinObjects;
 };
 const getDisplayCallTittle = ({ turno }) => {
     var _a;

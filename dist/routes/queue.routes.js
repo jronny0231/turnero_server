@@ -42,10 +42,10 @@ const middlewares = [activeToken_middlewares_1.authToken, activeUser_middlewares
  * con los siguientes campos: {id, secuencia, servicio_destino, departamento, estado}
  */
 router.get('/display/', smartTV_middlewares_1.getDisplayProps, controller.getActiveQueuesByDisplayId);
-router.get('/display/calling/', smartTV_middlewares_1.getDisplayProps, controller.getNewCallingsByDisplayId);
-router.post('/display/calling/:id', smartTV_middlewares_1.getDisplayProps, controller.updateCallingsByDisplayId);
+router.get('/display/callData/', smartTV_middlewares_1.getDisplayProps, controller.getNewCallingsByDisplayId);
+router.post('/display/callData/:id', smartTV_middlewares_1.getDisplayProps, controller.updateCallingsByDisplayId);
 router.get('/active/', middlewares, controller.GetToAttendQueue);
-router.put('/active/', middlewares, (0, validation_middlewares_1.default)(queue_schema_1.updateQueueState), controller.UpdateStateQueue);
+router.put('/active/', middlewares, (0, validation_middlewares_1.default)(queue_schema_1.updateQueueState), controller.UpdateStateAttendingQueue);
 router.get('/', middlewares, controller.GetAllQueues);
 router.get('/:id', middlewares, controller.GetQueueById);
 router.post('/', middlewares, (0, validation_middlewares_1.default)(queue_schema_1.createQueueWithClient), controller.StoreNewQueue);

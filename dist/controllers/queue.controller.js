@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeleteQueue = exports.UpdateQueue = exports.UpdateStateQueue = exports.GetToAttendQueue = exports.StoreNewQueue = exports.getActiveQueuesByClientId = exports.getActiveQueuesByDisplayId = exports.updateCallingsByDisplayId = exports.getNewCallingsByDisplayId = exports.GetQueueById = exports.GetAllQueues = void 0;
+exports.DeleteQueue = exports.UpdateQueue = exports.UpdateStateAttendingQueue = exports.GetToAttendQueue = exports.StoreNewQueue = exports.getActiveQueuesByClientId = exports.getActiveQueuesByDisplayId = exports.updateCallingsByDisplayId = exports.getNewCallingsByDisplayId = exports.GetQueueById = exports.GetAllQueues = void 0;
 const client_1 = require("@prisma/client");
 const global_state_1 = require("../core/global.state");
 const flow_manage_1 = require("../core/flow.manage");
@@ -62,9 +62,7 @@ const getActiveQueuesByDisplayId = (_req, res) => {
     try {
         const displayUUID = res.locals.display;
         const turnos = (0, global_state_1.getActiveQueueList)({ displayUUID });
-        if (turnos === null)
-            return res.status(404).json({ success: false, message: 'No active Turnos to display', data: turnos });
-        const data = turnos.map((turno) => {
+        const data = turnos === null || turnos === void 0 ? void 0 : turnos.map((turno) => {
             return {
                 id: turno.id,
                 secuencia_ticket: turno.secuencia_ticket,
@@ -147,12 +145,12 @@ const StoreNewQueue = (req, res) => {
                 yield prisma.$connect();
                 const cliente = () => __awaiter(void 0, void 0, void 0, function* () {
                     const clienteFound = yield prisma.clientes.findFirst({
-                        where: { identificacion: body.cliente.identificacion }
+                        where: { identificacion: body.cliente.body.identificacion }
                     });
                     if (clienteFound)
                         return clienteFound;
                     return yield prisma.clientes.create({
-                        data: Object.assign(Object.assign({}, body.cliente), { registrado_por_id, nombre_tutorado: (body.cliente.es_tutor ? 'sin_definir' : undefined) })
+                        data: Object.assign(Object.assign({}, body.cliente.body), { registrado_por_id, nombre_tutorado: (body.cliente.body.es_tutor ? 'sin_definir' : undefined) })
                     });
                 });
                 const servicio_actual_id = yield (0, flow_manage_1.getUnrelatedFirstService)({
@@ -209,24 +207,23 @@ const GetToAttendQueue = (res) => {
     }
 };
 exports.GetToAttendQueue = GetToAttendQueue;
-const UpdateStateQueue = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const UpdateStateAttendingQueue = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const body = req.body;
-    const { id: turno_id } = req.params;
     try {
         if (body.servicio_id === undefined || body.agente_id === undefined || body.estado_turno_id === undefined) {
             return res.status(404).json({ success: false, message: "Data receive is incomplet or bad formed" });
         }
-        const isUpdate = yield (0, global_state_1.setAttendingState)(Object.assign(Object.assign({}, body), { turno_id }));
+        const isUpdate = yield (0, global_state_1.setAttendingState)(Object.assign({}, body));
         if (isUpdate)
             return res.json({ success: true, message: "Turno status was updated successfully!", data: isUpdate });
         return res.status(404).json({ success: false, message: "Turno status could not updated", data: isUpdate });
     }
     catch (error) {
-        console.error(`Error trying update Status Turno id: ${turno_id} with status_turno_id: ${body.estado_turno_id}`, { error });
-        return res.status(500).json({ success: false, message: `Error trying update Status Turno id: ${turno_id} with status_turno_id: ${body.estado_turno_id}`, data: error });
+        console.error(`Error trying update Status Turno id: ${body.turno_id} with status_turno_id: ${body.estado_turno_id}`, { error });
+        return res.status(500).json({ success: false, message: `Error trying update Status Turno id: ${body.turno_id} with status_turno_id: ${body.estado_turno_id}`, data: error });
     }
 });
-exports.UpdateStateQueue = UpdateStateQueue;
+exports.UpdateStateAttendingQueue = UpdateStateAttendingQueue;
 const UpdateQueue = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const body = req.body;
     const id = Number(req.params.id);

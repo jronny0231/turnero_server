@@ -59,10 +59,7 @@ const getAvailableRelatedServices = ({ turno }) => __awaiter(void 0, void 0, voi
                 prioridad: true,
             },
             orderBy: { prioridad: 'asc' }
-        })
-            .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-            yield prisma.$disconnect();
-        }));
+        });
     }
     catch (error) {
         console.error(`Error trying get services in Servicios_Seguros, turno_id: ${turno === null || turno === void 0 ? void 0 : turno.id}`, { error });
@@ -74,9 +71,7 @@ const getAllRelatedServices = async () => {
     try {
 
         const listas = await prisma.servicios_dependientes.findMany()
-        .finally(async () => {
-            await prisma.$disconnect()
-        })
+        
         if (listas.length = 0) return null
 
         return listas.map(lista => {
@@ -101,10 +96,7 @@ const getRelatedServicesListByQueue = ({ turno_id }) => __awaiter(void 0, void 0
     try {
         const lista = yield prisma.servicios_dependientes.findFirst({
             where: { turno_id },
-        })
-            .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-            yield prisma.$disconnect();
-        }));
+        });
         if (lista === null)
             return null;
         if (lista.serie_servicios &&
@@ -176,9 +168,11 @@ const getUnrelatedFirstService = ({ seguro_id, sucursal_id, servicio_destino_id 
                 seguro_id: seguro_id !== null && seguro_id !== void 0 ? seguro_id : 0,
                 servicio_destino_id: servicio_destino_id,
                 servicio: {
-                    servicios_sucursales: {
+                    Servicios_departamentos_sucursales: {
                         some: {
-                            sucursal_id: sucursal_id
+                            departamento_sucursal: {
+                                sucursal_id: sucursal_id
+                            }
                         }
                     }
                 }
@@ -227,10 +221,7 @@ const addNewFlowList = ({ turno }) => __awaiter(void 0, void 0, void 0, function
                 turno_id: turno.id,
                 serie_servicios
             }
-        })
-            .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-            yield prisma.$disconnect();
-        }));
+        });
     }
     catch (error) {
         return null;

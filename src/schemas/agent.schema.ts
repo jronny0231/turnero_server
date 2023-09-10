@@ -29,6 +29,7 @@ export const createAgent = z.object({
         estatus: true,
     }).partial({
         tipo_agente: true,
+        tipo_agente_id: true
     })
 })
 

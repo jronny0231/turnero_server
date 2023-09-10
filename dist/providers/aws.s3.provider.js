@@ -16,7 +16,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.downloadTempFile = exports.getFile = exports.getFileList = exports.uploadFile = void 0;
 const client_s3_1 = require("@aws-sdk/client-s3");
 const fs_1 = __importDefault(require("fs"));
-const AWS_BUCKET_NAME = (_a = process.env.AWS_BUCKET_NAM) !== null && _a !== void 0 ? _a : "";
+const AWS_BUCKET_NAME = (_a = process.env.AWS_BUCKET_NAME) !== null && _a !== void 0 ? _a : "";
 const AWS_BUCKET_REGION = (_b = process.env.AWS_BUCKET_REGION) !== null && _b !== void 0 ? _b : "";
 const AWS_PUBLIC_KEY = (_c = process.env.AWS_PUBLIC_KEY) !== null && _c !== void 0 ? _c : "";
 const AWS_SECRET_KEY = (_d = process.env.AWS_SECRET_KEY) !== null && _d !== void 0 ? _d : "";
@@ -48,11 +48,12 @@ const getFileList = () => __awaiter(void 0, void 0, void 0, function* () {
     const command = new client_s3_1.ListObjectsCommand({
         Bucket: AWS_BUCKET_NAME
     });
+    console.log({ AWS_BUCKET_NAME });
     const result = yield client.send(command);
     return result.Contents;
 });
 exports.getFileList = getFileList;
-const getFile = ({ fileKey }) => __awaiter(void 0, void 0, void 0, function* () {
+const getFile = (fileKey) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const command = new client_s3_1.GetObjectCommand({
             Bucket: AWS_BUCKET_NAME,

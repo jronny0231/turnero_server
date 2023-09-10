@@ -17,11 +17,11 @@ const GetAllServices = (_req, res) => __awaiter(void 0, void 0, void 0, function
     try {
         const servicios = yield prisma.servicios.findMany().finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
         if (servicios.length === 0)
-            return res.status(404).json({ message: 'Clients data was not found' });
-        return res.json({ success: true, message: 'Clients data was successfully recovery', data: servicios });
+            return res.status(404).json({ message: 'Services data was not found' });
+        return res.json({ success: true, message: 'Services data was successfully recovery', data: servicios });
     }
     catch (error) {
-        return res.status(500).json({ message: 'Server status error getting Clients data.', data: error });
+        return res.status(500).json({ message: 'Server status error getting Services data.', data: error });
     }
 });
 exports.GetAllServices = GetAllServices;
@@ -73,9 +73,31 @@ const StoreNewServices = (req, res) => __awaiter(void 0, void 0, void 0, functio
     }
 });
 exports.StoreNewServices = StoreNewServices;
-exports.UpdateService = ((_req, res) => {
-    return res.json('Update a Servicios');
+const UpdateService = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = Number(req.params.id);
+    const data = req.body;
+    try {
+        const result = yield prisma.servicios.update({
+            where: { id }, data
+        }).finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
+        return res.json({ success: true, message: 'Servicio data was successfully updated', data: result });
+    }
+    catch (error) {
+        return res.status(500).json({ message: `Server status error updating Servicio id: ${id} data.`, data: error });
+    }
 });
-exports.DeleteService = ((_req, res) => {
-    return res.json('Delete a Servicios');
+exports.UpdateService = UpdateService;
+const DeleteService = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = Number(req.params.id);
+    try {
+        const result = yield prisma.servicios.delete({
+            where: { id }
+        }).finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
+        return res.json({ success: true, message: "Servicio was update successfully!", data: result });
+    }
+    catch (error) {
+        console.error(`Error trying delete Servicio id: ${id}`, { error });
+        return res.status(404).json({ success: false, message: `Error trying delete Servicio id: ${id}`, data: error });
+    }
 });
+exports.DeleteService = DeleteService;

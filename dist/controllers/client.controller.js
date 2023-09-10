@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeleteClients = exports.UpdateClients = exports.StoreNewClient = exports.GetClientsById = exports.GetAllClients = void 0;
+exports.DeleteClient = exports.UpdateClient = exports.StoreNewClient = exports.GetClientsById = exports.GetAllClients = void 0;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 const GetAllClients = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -40,36 +40,34 @@ const GetClientsById = (req, res) => __awaiter(void 0, void 0, void 0, function*
 });
 exports.GetClientsById = GetClientsById;
 const StoreNewClient = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    const receive = (_a = req.query.with) !== null && _a !== void 0 ? _a : false;
-    const include = receive ? String(receive).toUpperCase() : 'NONE';
+    const data = req.body;
     const registrado_por_id = res.locals.payload.id;
     try {
-        let nuevoCliente = {};
+        let seguro_id = data.seguro_id;
         yield prisma.$connect();
-        if (include === 'SEGURO') {
-            const data = req.body;
+        if (seguro_id === undefined) {
+            if (data.seguro === undefined) {
+                return res.status(400).json({ success: false, message: "Seguro or seguro_id not receive" });
+            }
             let seguro = yield prisma.seguros.findFirst({
-                where: { NOT: { OR: [
-                            { siglas: data.seguro.siglas },
-                            { nombre_corto: data.seguro.nombre_corto },
-                            { nombre: data.seguro.nombre }
-                        ]
-                    } }
+                where: { OR: [
+                        { siglas: data.seguro.siglas },
+                        { nombre_corto: data.seguro.nombre_corto },
+                        { nombre: data.seguro.nombre }
+                    ]
+                }
             });
             if (seguro === null) {
                 seguro = yield prisma.seguros.create({
                     data: Object.assign({}, data.seguro)
                 });
             }
-            nuevoCliente = yield prisma.clientes.create({
-                data: Object.assign(Object.assign({}, data), { seguro: undefined, seguro_id: seguro.id, registrado_por_id })
-            });
+            seguro_id = seguro.id;
         }
-        else if (include === 'NONE') {
-        }
-        if (nuevoCliente === null)
-            return res.status(404).json({ message: 'Cliente was not created' });
+        const nuevoCliente = yield prisma.clientes.create({
+            data: Object.assign(Object.assign({}, data), { seguro: undefined, seguro_id,
+                registrado_por_id })
+        });
         return res.json({ success: true, message: 'Cliente data was successfully created', data: nuevoCliente });
     }
     catch (error) {
@@ -80,9 +78,35 @@ const StoreNewClient = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }
 });
 exports.StoreNewClient = StoreNewClient;
-exports.UpdateClients = ((_req, res) => {
-    res.send('Update a Clientes');
+const UpdateClient = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const data = req.body;
+    try {
+        const result = yield prisma.clientes.update({
+            where: { id },
+            data: Object.assign({}, data)
+        });
+        return res.json({ sucess: true, message: `Cliente id: ${id} was successfully updated`, data: result });
+    }
+    catch (error) {
+        return res.status(500).json({ message: `Server status error updateing Cliente id ${id}`, data: error });
+    }
+    finally {
+        yield prisma.$disconnect();
+    }
 });
-exports.DeleteClients = ((_req, res) => {
-    res.send('Delete a Clientes');
+exports.UpdateClient = UpdateClient;
+const DeleteClient = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = Number(req.params.id);
+    try {
+        const result = yield prisma.clientes.delete({
+            where: { id }
+        }).finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
+        return res.json({ success: true, message: "Cliente was deleted successfully!", data: result });
+    }
+    catch (error) {
+        console.error(`Error trying delete Cliente id: ${id}`, { error });
+        return res.status(404).json({ success: false, message: `Error trying delete Cliente id: ${id}`, data: error });
+    }
 });
+exports.DeleteClient = DeleteClient;

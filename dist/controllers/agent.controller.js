@@ -41,15 +41,25 @@ const GetAgentById = (req, res) => __awaiter(void 0, void 0, void 0, function* (
 });
 exports.GetAgentById = GetAgentById;
 const StoreNewAgent = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     const data = req.body;
     try {
+        let tipo_agente_id = (_a = data.tipo_agente_id) !== null && _a !== void 0 ? _a : 0;
+        const usuario_id = data.usuario_id;
         yield prisma.$connect();
-        const newUserId = data.usuario_id;
-        if (newUserId === undefined) {
+        if (tipo_agente_id === 0) {
+            if (data.tipo_agente === undefined) {
+                return res.status(400).json({ success: false, message: 'Tipo_agente or tipo_agente_id not received!' });
+            }
+            tipo_agente_id = (yield prisma.tipos_agentes.create({
+                data: Object.assign({}, data.tipo_agente)
+            })).id;
+        }
+        if (usuario_id === undefined) {
             return res.status(404).json({ message: 'Agente cant be created without user data or usuario_id' });
         }
         const nuevoAgente = yield prisma.agentes.create({
-            data: Object.assign(Object.assign({}, data), { usuario: undefined, usuario_id: newUserId })
+            data: Object.assign(Object.assign({}, data), { tipo_agente_id, tipo_agente: undefined, usuario_id })
         });
         return res.json({ success: true, message: 'Agente data was successfully created', data: nuevoAgente });
     }
@@ -84,10 +94,10 @@ const UpdateAgentQueueStatus = (req, res) => {
             return res.status(404).json({ success: false,
                 message: `Agente with usuario id ${usuario_id} availability was not updated` });
         }
-        return res.json({ success: true, message: `Agente with id ${data.agente_id} availability was updated!` });
+        return res.json({ success: true, message: `Agente with user id ${usuario_id} availability was updated!` });
     }
     catch (error) {
-        return res.status(500).json({ message: `Server status error updating Agente availability with id: ${data.agente_id} data.`, data: error });
+        return res.status(500).json({ message: `Server status error updating Agente availability with user id: ${usuario_id} data.`, data: error });
     }
 };
 exports.UpdateAgentQueueStatus = UpdateAgentQueueStatus;

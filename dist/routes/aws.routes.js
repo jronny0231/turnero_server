@@ -27,9 +27,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const controller = __importStar(require("../controllers/records.controller"));
-const validation_middlewares_1 = __importDefault(require("../middlewares/validation.middlewares"));
-const records_schema_1 = require("../schemas/records.schema");
+const controller = __importStar(require("../controllers/aws.controller"));
 const router = express_1.default.Router();
-router.get('/stream-queue/:uuid', (0, validation_middlewares_1.default)(records_schema_1.getQueueCallAudio), controller.getCallingAudiobyDisplay);
+router.get('/', controller.getAllFileList);
+router.get('/:key', controller.getFileByKey);
 exports.default = router;

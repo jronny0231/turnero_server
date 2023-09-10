@@ -39,19 +39,33 @@ export const StoreNewAgent = async (req: Request, res: Response) => {
     const data: createAgentType['body'] = req.body
     
     try {
+        let tipo_agente_id: number = data.tipo_agente_id ?? 0
+        const usuario_id: number | undefined = data.usuario_id
+
         await prisma.$connect()
 
-        const newUserId: number | undefined = data.usuario_id
+        if (tipo_agente_id === 0) {
+            if (data.tipo_agente === undefined) {
+                return res.status(400).json({success:false, message: 'Tipo_agente or tipo_agente_id not received!'})
+            }
 
-        if (newUserId === undefined) {
+            tipo_agente_id = (await prisma.tipos_agentes.create({
+                data: {
+                    ...data.tipo_agente
+                }
+            })).id
+        }
+
+        if (usuario_id === undefined) {
             return res.status(404).json({message: 'Agente cant be created without user data or usuario_id'})
         }
 
         const nuevoAgente = await prisma.agentes.create({
             data: {
                 ...data,
-                usuario: undefined,
-                usuario_id: newUserId
+                tipo_agente_id,
+                tipo_agente: undefined,
+                usuario_id
             }
         })
         
@@ -93,11 +107,11 @@ export const UpdateAgentQueueStatus = (req: Request, res: Response) => {
                 message: `Agente with usuario id ${usuario_id} availability was not updated`})
         }
         
-        return res.json({success: true, message: `Agente with id ${data.agente_id} availability was updated!`})
+        return res.json({success: true, message: `Agente with user id ${usuario_id} availability was updated!`})
         
         
     } catch (error) {
-        return res.status(500).json({message: `Server status error updating Agente availability with id: ${data.agente_id} data.`, data: error})
+        return res.status(500).json({message: `Server status error updating Agente availability with user id: ${usuario_id} data.`, data: error})
     }
 }
 
