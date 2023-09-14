@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Usuarios } from "@prisma/client";
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { createToken } from "../services/jwt.helper";
@@ -24,6 +24,41 @@ export const ConfirmPasswordForm = (_req: Request, res: Response) => {
 }
 
 
+export const verifyUserName = async (req: Request, res: Response) => {
+    const body = req.body
+
+    try {
+        await prisma.$connect()
+
+        const { data: user, ...result } = await checkUserAccount(body.username)
+
+        if (user === undefined) {
+            return res.status(result.code).json({...result} as {success: boolean, message: string})
+        }
+
+        const token = createToken({
+            id: user.id,
+            type: 'USER',
+            username: user.username,
+            correo: user.correo
+        })
+
+        if (bcrypt.compareSync(DEFAULT_PASSWORD, user.password)) {
+            return res.status(203).json({sucess: true, message: `Redirect to update password form`, data: token})
+        }
+
+        return res.json({sucess: true, message: `User ${body.username} confirmed!`})
+
+    } catch (error) {
+        console.error(`Error trying check account of username: ${body.username}`, {error})
+        return res.status(500).json({success: false, message: `Error trying check account of username: ${body.username}`, data: error})
+    
+    } finally {
+        await prisma.$disconnect()
+    }
+}
+
+
 export const Login = async (req: Request, res: Response) => {
     const body: userCredentialType['body']  = req.body
 
@@ -35,25 +70,12 @@ export const Login = async (req: Request, res: Response) => {
         }
 
         await prisma.$connect()
-        
-        const user = await prisma.usuarios.findFirst({
-            where:{ username: { equals: body.username, mode: 'insensitive' } }
-        })
 
-        if (user === null) {
-            return res.status(400).json({success: false, message: 'Username or Password not match'});
+        const { data: user, ...result } = await checkUserAccount(body.username)
+
+        if (user === undefined) {
+            return res.status(result.code).json({...result} as {success: boolean, message: string})
         }
-
-        if (user.activo === false) {
-            return res.status(404).json({success: false, message: 'El usuario no esa activo, hable con su administrador'});
-        }
-
-        const token = createToken({
-            id: user.id,
-            type: 'USER',
-            username: user.username,
-            correo: user.correo
-        })
         
         /*
         if (bcrypt.compareSync(DEFAULT_PASSWORD, user.password)) {
@@ -62,6 +84,13 @@ export const Login = async (req: Request, res: Response) => {
         */
        
         if (bcrypt.compareSync(body.password, user.password)) {
+            const token = createToken({
+                id: user.id,
+                type: 'USER',
+                username: user.username,
+                correo: user.correo
+            })
+
             await prisma.usuarios.update({
                 where: { id: user.id },
                 data: { token }
@@ -274,6 +303,36 @@ export const RefreshToken = async (_req: any, res: any) => {
     } finally {
         await prisma.$disconnect()
     }
+}
+
+
+const checkUserAccount = async (username: string): Promise<{code: number, success: boolean, message: string, data?: Usuarios}> => {
+    const user = await prisma.usuarios.findFirst({
+        where:{ username: { equals: username, mode: 'insensitive' } }
+    })
+
+    if (user === null) {
+        return {
+            code: 400,
+            success: false,
+            message: 'Username or Password not match'
+        };
+    }
+
+    if (user.activo === false) {
+        return {
+            code: 404,
+            success: false,
+            message: `User ${username} is not active, comunicate with administrator`
+        };
+    }
+
+    return {
+        code: 200,
+        success: true,
+        message: `User ${username} is successfully getted`,
+        data: user
+    };
 }
 
 const getSuperUserData = () => {

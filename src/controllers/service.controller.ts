@@ -61,16 +61,39 @@ export const StoreNewServices = async (req: Request, res: Response) => {
     const data: createServicesType['body'] = req.body;
 
     try {
-        const result = await prisma.$transaction(
-            data.map(entry => prisma.servicios.create({ data: entry }) )
-        )
+        await prisma.$connect()
+        let result: Servicios[] = []
 
-        if (result === undefined) {
-            return res.status(400).json({success: false, message: "Algunos registros de servicios no se crearon"})
+        for (const servicio of data) {
+            let grupo_id = servicio.grupo_id
+
+            if (grupo_id === undefined) {
+                if (servicio.grupo === undefined) {
+                    return null
+                }
+
+                const grupo = await prisma.grupos_servicios.create({
+                    data: servicio.grupo.body
+                })
+
+                grupo_id = grupo.id
+            }
+
+            result.push( await prisma.servicios.create({
+                data: {
+                    ...servicio,
+                    grupo_id,
+                    grupo: undefined,
+                }
+            }))
+        };
+
+        if (result.length === 0) {
+            return res.status(400).json({success: false, message: "No Services were created, Group left!"})
         }
 
         refreshPersistentData()
-        return res.json({success: true, message: 'Servicio data was successfully created', data: result})
+        return res.json({success: true, message: 'Servicios data were successfully created', data: result})
 
     } catch (error) {
         return res.status(500).json({message: 'Server status error creating Servicios.', data: error})

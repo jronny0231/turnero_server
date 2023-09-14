@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Grupos_servicios, PrismaClient } from '@prisma/client';
+import { createServicesGroupType, updateServiceGroupType } from '../schemas/service.schema';
 
 const prisma = new PrismaClient
 
@@ -50,14 +51,14 @@ export const GetServiceGroupById = async (req: Request, res: Response) => {
 }
 
 export const StoreNewServiceGroup = async (req: Request, res: Response) => {
-    const data: Grupos_servicios = req.body;
+    const data: createServicesGroupType['body'] = req.body;
 
     try {
-        const Grupos_servicios = await prisma.grupos_servicios.create({
+        const Grupos_servicios = await prisma.grupos_servicios.createMany({
             data
         }).finally(async () => await prisma.$disconnect())
         
-        return res.json({success: true, message: 'Grupos_servicios data was successfully store', data: Grupos_servicios})
+        return res.json({success: true, message: 'Grupos_servicios data were successfully store', data: Grupos_servicios})
 
     } catch (error) {
         return res.status(500).json({message: 'Server status error creating Grupos_servicios data.', data: error})
@@ -65,8 +66,8 @@ export const StoreNewServiceGroup = async (req: Request, res: Response) => {
 }
 
 export const UpdateServiceGroup = async (req: Request, res: Response) => {
-    const id = Number(req.params.id);
-    const data: Grupos_servicios = req.body;
+    const id: updateServiceGroupType['params']['id'] = Number(req.params.id);
+    const data: updateServiceGroupType['body'] = req.body;
 
     try {
         const Grupos_servicios = await prisma.grupos_servicios.update({

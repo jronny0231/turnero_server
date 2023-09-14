@@ -41,10 +41,9 @@ export const StoreNewUser = async (req: Request, res: Response) => {
     const data: createUserType['body'] = req.body;
 
     try {
-
         await prisma.$connect()
 
-        const password = await encryptPassword(data.password)
+        const password = await encryptPassword()
         const usuario = await prisma.usuarios.create({
             data: {
                 ...data,

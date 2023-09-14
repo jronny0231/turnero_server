@@ -28,6 +28,8 @@ export const createUser = z.object({
     body: userSchema.partial({
         agente: true,
         agente_id: true,
+    }).omit({
+        password: true
     })
 })
 
