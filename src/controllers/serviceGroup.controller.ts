@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Grupos_servicios, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { createServicesGroupType, updateServiceGroupType } from '../schemas/service.schema';
 
 const prisma = new PrismaClient
