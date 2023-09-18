@@ -82,15 +82,15 @@ export const updateServices = z.object({
 export const discriminateFilterService = z.discriminatedUnion("serviceField", [
     z.object({
         serviceField: z.literal("id"),
-        data: z.tuple([ z.coerce.number().gte(1) ])
+        data_id: z.tuple([ z.coerce.number().gte(1) ])
     }),
     z.object({
         serviceField: z.literal("nombre_corto"),
-        data: z.tuple([ z.string().max(20) ])
+        data_short: z.tuple([ z.string().max(20) ])
     }),
     z.object({
         serviceField: z.literal("prefijo"),
-        data: z.tuple([ z.string().min(3).max(3)
+        data_prefix: z.tuple([ z.string().min(3).max(3)
             .regex(/^[A-Z]+$/,
             "Letters must be in UPPERCASE") ]) 
     })
@@ -103,3 +103,5 @@ export type updateServiceGroupType = z.infer<typeof updateServiceGroup>
 export type createServiceType = z.infer<typeof createService>
 export type createServicesType = z.infer<typeof createServices>
 export type updateServicesType = z.infer<typeof updateServices>
+
+export type discriminateFilterServiceType = z.infer<typeof discriminateFilterService>

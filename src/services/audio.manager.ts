@@ -53,10 +53,10 @@ const exportedAudioFiles: Array<exportedFilesType> = []
 const fileExtension = "wav";
 
 // Main absolute path direction for audio resources
-const mainPath = path.join(__dirname, 'records')
+const mainPath = path.join(path.resolve("./"), 'records')
 
 // Absolute directory for audio processed and exported
-const outDir = path.join(__dirname, 'exports')
+const outDir = path.join(mainPath, 'exports')
 
 // Keep sleep call audio until process ends
 let isWorking = false;

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient, Servicios } from '@prisma/client';
 import { GetAllAvailableServicesInSucursal, getServiceById, getSucursalByUserId, refreshPersistentData } from '../core/global.state';
-import { createServicesType, updateServicesType } from '../schemas/service.schema';
+import { createServicesType, discriminateFilterServiceType, updateServicesType } from '../schemas/service.schema';
 
 const prisma = new PrismaClient;
 
@@ -130,4 +130,34 @@ export const DeleteService = async (req: Request, res: Response) => {
         console.error(`Error trying delete Servicio id: ${id}`, {error}) 
         return res.status(404).json({success: false, message: `Error trying delete Servicio id: ${id}`, data: error});
     }
+}
+
+
+
+export const getIdsFromDiscriminatedSearch = (filter: discriminateFilterServiceType): number[] => {
+    const services_id: number[] = []
+        
+    if (filter.serviceField === 'id') {
+        services_id.push(...filter.data_id.map( id => id))
+    }
+    
+    if (filter.serviceField === 'nombre_corto') {
+            filter.data_short.map(async nombre_corto => {
+                const service = await prisma.servicios.findFirst({
+                    where: { nombre_corto }
+                })
+                if (service) services_id.push(service.id)
+            })
+    }
+
+    if (filter.serviceField === 'prefijo') {
+        filter.data_prefix.map(async prefijo => {
+            const service = await prisma.servicios.findFirst({
+                where: { prefijo }
+            })
+            if (service) services_id.push(service.id)
+        })
+    }
+
+    return services_id
 }
