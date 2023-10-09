@@ -25,8 +25,8 @@ router.post('/display/callData/:id', getDisplayProps, controller.updateCallingsB
 router.get('/active/', middlewares, controller.GetToAttendQueue);
 router.put('/active/', middlewares, validateWith(updateQueueState), controller.UpdateStateAttendingQueue);
 
-router.get('/', middlewares, controller.GetAllQueues);
-router.get('/:id', middlewares, controller.GetQueueById);
+router.get('/', middlewares, controller.getAllQueues);
+router.get('/:id', middlewares, controller.getQueueById);
 router.post('/', middlewares, validateWith(createQueueWithClient), controller.StoreNewQueue);
 router.put('/:id', middlewares, controller.UpdateQueue);
 router.delete('/:id', middlewares, controller.DeleteQueue);

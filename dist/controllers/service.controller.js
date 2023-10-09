@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeleteService = exports.UpdateService = exports.StoreNewServices = exports.GetServiceById = exports.GetAllAvailableServices = exports.GetAllServices = void 0;
+exports.getIdsFromDiscriminatedSearch = exports.DeleteService = exports.UpdateService = exports.StoreNewServices = exports.GetServiceById = exports.GetAllAvailableServices = exports.GetAllServices = void 0;
 const client_1 = require("@prisma/client");
 const global_state_1 = require("../core/global.state");
 const prisma = new client_1.PrismaClient;
@@ -61,12 +61,29 @@ exports.GetServiceById = GetServiceById;
 const StoreNewServices = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = req.body;
     try {
-        const result = yield prisma.$transaction(data.map(entry => prisma.servicios.create({ data: entry })));
-        if (result === undefined) {
-            return res.status(400).json({ success: false, message: "Algunos registros de servicios no se crearon" });
+        yield prisma.$connect();
+        let result = [];
+        for (const servicio of data) {
+            let grupo_id = servicio.grupo_id;
+            if (grupo_id === undefined) {
+                if (servicio.grupo === undefined) {
+                    return null;
+                }
+                const grupo = yield prisma.grupos_servicios.create({
+                    data: servicio.grupo.body
+                });
+                grupo_id = grupo.id;
+            }
+            result.push(yield prisma.servicios.create({
+                data: Object.assign(Object.assign({}, servicio), { grupo_id, grupo: undefined })
+            }));
+        }
+        ;
+        if (result.length === 0) {
+            return res.status(400).json({ success: false, message: "No Services were created, Group left!" });
         }
         (0, global_state_1.refreshPersistentData)();
-        return res.json({ success: true, message: 'Servicio data was successfully created', data: result });
+        return res.json({ success: true, message: 'Servicios data were successfully created', data: result });
     }
     catch (error) {
         return res.status(500).json({ message: 'Server status error creating Servicios.', data: error });
@@ -101,3 +118,29 @@ const DeleteService = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.DeleteService = DeleteService;
+const getIdsFromDiscriminatedSearch = (filter) => {
+    const services_id = [];
+    if (filter.serviceField === 'id') {
+        services_id.push(...filter.data_id.map(id => id));
+    }
+    if (filter.serviceField === 'nombre_corto') {
+        filter.data_short.map((nombre_corto) => __awaiter(void 0, void 0, void 0, function* () {
+            const service = yield prisma.servicios.findFirst({
+                where: { nombre_corto }
+            });
+            if (service)
+                services_id.push(service.id);
+        }));
+    }
+    if (filter.serviceField === 'prefijo') {
+        filter.data_prefix.map((prefijo) => __awaiter(void 0, void 0, void 0, function* () {
+            const service = yield prisma.servicios.findFirst({
+                where: { prefijo }
+            });
+            if (service)
+                services_id.push(service.id);
+        }));
+    }
+    return services_id;
+};
+exports.getIdsFromDiscriminatedSearch = getIdsFromDiscriminatedSearch;

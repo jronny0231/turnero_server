@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getFileByKey = exports.getAllFileList = void 0;
-const aws_s3_provider_1 = require("../providers/aws.s3.provider");
+const aws_s3_provider_1 = require("../../unused/aws.s3.provider");
 const getAllFileList = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield (0, aws_s3_provider_1.getFileList)();
     try {

@@ -9,12 +9,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeleteQueue = exports.UpdateQueue = exports.UpdateStateAttendingQueue = exports.GetToAttendQueue = exports.StoreNewQueue = exports.getActiveQueuesByClientId = exports.getActiveQueuesByDisplayId = exports.updateCallingsByDisplayId = exports.getNewCallingsByDisplayId = exports.GetQueueById = exports.GetAllQueues = void 0;
+exports.DeleteQueue = exports.UpdateQueue = exports.UpdateStateAttendingQueue = exports.GetToAttendQueue = exports.StoreNewQueue = exports.getActiveQueuesByClientId = exports.getActiveQueuesByDisplayId = exports.updateCallingsByDisplayId = exports.getNewCallingsByDisplayId = exports.getQueueById = exports.getAllQueues = void 0;
 const client_1 = require("@prisma/client");
 const global_state_1 = require("../core/global.state");
 const flow_manage_1 = require("../core/flow.manage");
 const prisma = new client_1.PrismaClient();
-const GetAllQueues = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getAllQueues = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const turnos = yield prisma.turnos.findMany().finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
         if (turnos.length === 0)
@@ -25,8 +25,8 @@ const GetAllQueues = (_req, res) => __awaiter(void 0, void 0, void 0, function* 
         return res.status(500).json({ message: 'Server status error getting Turnos data.', data: error });
     }
 });
-exports.GetAllQueues = GetAllQueues;
-const GetQueueById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+exports.getAllQueues = getAllQueues;
+const getQueueById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const id = Number(req.params.id);
         const result = yield prisma.turnos.findFirst({
@@ -40,7 +40,14 @@ const GetQueueById = (req, res) => __awaiter(void 0, void 0, void 0, function* (
         return res.status(500).json({ success: false, message: 'Server status error finding Turno data.', data: error });
     }
 });
-exports.GetQueueById = GetQueueById;
+exports.getQueueById = getQueueById;
+/**
+ * Function run by display when a new call state is ready to launch
+ * according to queue state fetchin data and calling audio file and
+ * returns a json with the calling data.
+ * @param res
+ * @returns
+ */
 const getNewCallingsByDisplayId = (_req, res) => {
     const key = res.locals.display;
     const data = (0, global_state_1.getCallQueueState)({ displayUUID: key });
@@ -140,7 +147,6 @@ const StoreNewQueue = (req, res) => {
             createdAt: nowTimestamp.toLocaleString()
         };
         new Promise((resolve, reject) => __awaiter(void 0, void 0, void 0, function* () {
-            var _a;
             try {
                 yield prisma.$connect();
                 const cliente = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -150,11 +156,17 @@ const StoreNewQueue = (req, res) => {
                     if (clienteFound)
                         return clienteFound;
                     return yield prisma.clientes.create({
-                        data: Object.assign(Object.assign({}, body.cliente.body), { registrado_por_id, nombre_tutorado: (body.cliente.body.es_tutor ? 'sin_definir' : undefined) })
+                        data: {
+                            tipo_identificacion_id: body.cliente.body.tipo_identificacion_id,
+                            identificacion: body.cliente.body.identificacion,
+                            seguro_id: body.cliente.body.seguro_id,
+                            registrado_por_id,
+                            nombre_tutorado: (body.cliente.body.es_tutor ? 'sin_definir' : undefined)
+                        }
                     });
                 });
                 const servicio_actual_id = yield (0, flow_manage_1.getUnrelatedFirstService)({
-                    seguro_id: (_a = (yield cliente()).seguro_id) !== null && _a !== void 0 ? _a : 0,
+                    seguro_id: (yield cliente()).seguro_id,
                     sucursal_id: body.sucursal_id,
                     servicio_destino_id: servicio_destino.id
                 });
@@ -171,7 +183,7 @@ const StoreNewQueue = (req, res) => {
                         cola_posicion,
                         registrado_por_id,
                         sucursal_id: body.sucursal_id,
-                        fecha_turno: nowTimestamp.toLocaleDateString()
+                        fecha_turno: nowTimestamp.toISOString()
                     }
                 });
                 (0, global_state_1.addNewQueueState)({ turno });

@@ -46,8 +46,8 @@ router.get('/display/callData/', smartTV_middlewares_1.getDisplayProps, controll
 router.post('/display/callData/:id', smartTV_middlewares_1.getDisplayProps, controller.updateCallingsByDisplayId);
 router.get('/active/', middlewares, controller.GetToAttendQueue);
 router.put('/active/', middlewares, (0, validation_middlewares_1.default)(queue_schema_1.updateQueueState), controller.UpdateStateAttendingQueue);
-router.get('/', middlewares, controller.GetAllQueues);
-router.get('/:id', middlewares, controller.GetQueueById);
+router.get('/', middlewares, controller.getAllQueues);
+router.get('/:id', middlewares, controller.getQueueById);
 router.post('/', middlewares, (0, validation_middlewares_1.default)(queue_schema_1.createQueueWithClient), controller.StoreNewQueue);
 router.put('/:id', middlewares, controller.UpdateQueue);
 router.delete('/:id', middlewares, controller.DeleteQueue);

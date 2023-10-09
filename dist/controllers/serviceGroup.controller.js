@@ -56,10 +56,10 @@ exports.GetServiceGroupById = GetServiceGroupById;
 const StoreNewServiceGroup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = req.body;
     try {
-        const Grupos_servicios = yield prisma.grupos_servicios.create({
+        const Grupos_servicios = yield prisma.grupos_servicios.createMany({
             data
         }).finally(() => __awaiter(void 0, void 0, void 0, function* () { return yield prisma.$disconnect(); }));
-        return res.json({ success: true, message: 'Grupos_servicios data was successfully store', data: Grupos_servicios });
+        return res.json({ success: true, message: 'Grupos_servicios data were successfully store', data: Grupos_servicios });
     }
     catch (error) {
         return res.status(500).json({ message: 'Server status error creating Grupos_servicios data.', data: error });

@@ -16,7 +16,6 @@ const schedule_routes_1 = __importDefault(require("./routes/schedule.routes"));
 const records_routes_1 = __importDefault(require("./routes/records.routes"));
 const office_routes_1 = __importDefault(require("./routes/office.routes"));
 const department_routes_1 = __importDefault(require("./routes/department.routes"));
-const aws_routes_1 = __importDefault(require("./routes/aws.routes"));
 ws_server_1.default.on("connection", () => { });
 const pjson = require("../package.json");
 const version = pjson.version || process.env.VERSION;
@@ -31,5 +30,4 @@ express_server_1.default.use(`/api/v${version}/schedule`, schedule_routes_1.defa
 express_server_1.default.use(`/api/v${version}/audio`, records_routes_1.default);
 express_server_1.default.use(`/api/v${version}/offices`, office_routes_1.default);
 express_server_1.default.use(`/api/v${version}/departments`, department_routes_1.default);
-express_server_1.default.use(`/api/v${version}/aws`, aws_routes_1.default);
 exports.default = express_server_1.default;

@@ -15,6 +15,7 @@ const filtering_1 = require("../utils/filtering");
 const time_helpers_1 = require("../utils/time.helpers");
 const flow_manage_1 = require("./flow.manage");
 const audio_manager_1 = require("../services/audio.manager");
+const string_compose_1 = require("../utils/string.compose");
 const QUEUE_STATE = [];
 const PERSISTENT_DATA = [];
 const tempStatus = new Map;
@@ -34,250 +35,241 @@ exports.initData = initData;
  * Metodo con ejecucion asincrona para actualizar
  * o setear los datos en la constante PERSISTENT_DATA
  */
-const refreshPersistentData = () => {
-    new Promise((resolve, reject) => __awaiter(void 0, void 0, void 0, function* () {
-        try {
-            const data = yield prisma.sucursales.findMany({
-                include: {
-                    departamentos_sucursales: {
-                        select: {
-                            agentes: {
-                                include: {
-                                    tipo_agente: {
-                                        select: {
-                                            grupo_servicio_id: true
-                                        }
-                                    }
-                                }
-                            },
-                            servicios_departamentos_sucursales: {
-                                select: { servicio: true,
-                                    departamento_sucursal: {
-                                        select: { departamento: true }
+const refreshPersistentData = () => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const data = yield prisma.sucursales.findMany({
+            include: {
+                departamentos_sucursales: {
+                    include: {
+                        agentes: {
+                            include: {
+                                tipo_agente: {
+                                    select: {
+                                        grupo_servicio_id: true
                                     }
                                 }
                             }
+                        },
+                        servicios_departamentos_sucursales: {
+                            include: {
+                                servicio: true,
+                                departamento_sucursal: {
+                                    include: { departamento: true }
+                                }
+                            }
                         }
-                    },
-                    pantallas: true
+                    }
                 },
-                where: {
-                    estatus: true,
-                    departamentos_sucursales: {
-                        some: {
-                            agentes: { some: { estatus: true } },
-                            servicios_departamentos_sucursales: {
-                                some: {
-                                    disponible: true,
-                                    servicio: { estatus: true }
-                                }
+                pantallas: true
+            },
+            where: {
+                estatus: true,
+                departamentos_sucursales: {
+                    some: {
+                        agentes: { some: { estatus: true } },
+                        servicios_departamentos_sucursales: {
+                            some: {
+                                disponible: true,
+                                servicio: { estatus: true }
                             }
                         }
-                    },
-                    pantallas: { some: { estatus: true } }
-                }
-            })
-                .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-                yield prisma.$disconnect();
-            }));
-            if (data === null)
-                throw new Error("data got from database is empty.");
-            console.log({ data });
-            PERSISTENT_DATA.length = 0;
-            data.map(sucursal => {
-                const conjunto_agentes = sucursal.departamentos_sucursales
-                    .map(depsuc => {
-                    return Object.assign({}, depsuc.agentes.map(agente => {
-                        return Object.assign(Object.assign({}, agente), { grupo_servicio_id: agente.tipo_agente.grupo_servicio_id });
-                    }));
-                })[0]
-                    .filter(entry => entry !== null);
-                const conjunto_servicios = sucursal.departamentos_sucursales
-                    .map(depsuc => depsuc.servicios_departamentos_sucursales
-                    .filter(entry => entry !== null)
-                    .map(serdepsuc => serdepsuc.servicio))
-                    .filter(entry => entry !== null)[0];
-                const conjunto_departamentos = sucursal.departamentos_sucursales
-                    .map(depsuc => depsuc.servicios_departamentos_sucursales
-                    .filter(entry => entry !== null)
-                    .map(serdepsuc => serdepsuc.departamento_sucursal.departamento))
-                    .filter(entry => entry !== null)[0];
-                const entry = Object.assign(Object.assign({}, sucursal), { conjunto_servicios,
-                    conjunto_departamentos,
-                    conjunto_agentes, conjunto_pantallas: sucursal.pantallas });
-                PERSISTENT_DATA.push(entry);
-            });
-            resolve(PERSISTENT_DATA);
-            return true;
-        }
-        catch (error) {
-            console.error("Error trying setting up PERSISTEN_DATA on state", { error });
-            reject(error);
-            return false;
-        }
-        finally {
-            console.log("Async refresh PERSISTENT_DATA", { length: PERSISTENT_DATA.length });
-        }
-    }));
-};
+                    }
+                },
+                pantallas: { some: { estatus: true } }
+            }
+        })
+            .finally(() => __awaiter(void 0, void 0, void 0, function* () {
+            yield prisma.$disconnect();
+        }));
+        if (data === null)
+            throw new Error("data got from database is empty.");
+        PERSISTENT_DATA.length = 0;
+        data.map(sucursal => {
+            const conjunto_agentes = sucursal.departamentos_sucursales
+                .flatMap(depsuc => depsuc.agentes
+                .flatMap(agente => (Object.assign(Object.assign({}, agente), { grupo_servicio_id: agente.tipo_agente.grupo_servicio_id }))));
+            const conjunto_servicios = sucursal.departamentos_sucursales
+                .flatMap(depsuc => depsuc.servicios_departamentos_sucursales
+                .flatMap(serdepsuc => serdepsuc.servicio));
+            const conjunto_departamentos = sucursal.departamentos_sucursales
+                .flatMap(depsuc => depsuc.servicios_departamentos_sucursales
+                .flatMap(serdepsuc => serdepsuc.departamento_sucursal.departamento));
+            const entry = Object.assign(Object.assign({}, sucursal), { conjunto_servicios,
+                conjunto_departamentos,
+                conjunto_agentes, conjunto_pantallas: sucursal.pantallas });
+            PERSISTENT_DATA.push(entry);
+        });
+        return true;
+    }
+    catch (error) {
+        console.error("Error trying setting up PERSISTEN_DATA on state", { error });
+        return false;
+    }
+    finally {
+        console.log("Async refresh PERSISTENT_DATA", { length: PERSISTENT_DATA.length });
+    }
+});
 exports.refreshPersistentData = refreshPersistentData;
 /**
  * Metodo con ejecucion asincrona para subir el nuevo estado
  * del la constante PERSISTENT_DATA a la base de datos y refrescar el local
  */
-const updatePersistentData = (newState) => {
-    new Promise((resolve, reject) => __awaiter(void 0, void 0, void 0, function* () {
+/*
+const updatePersistentData = (newState: typeof PERSISTENT_DATA) => {
+    new Promise ( async (resolve, reject) => {
         try {
-            if (newState.length === 0)
-                throw new Error('new state data is empty.');
-            const agentes = newState.flatMap(sucursal => {
-                if (sucursal.conjunto_agentes !== undefined)
-                    return sucursal.conjunto_agentes;
-                return undefined;
-            }).filter(entry => entry !== undefined);
-            const pantallas = newState.flatMap(sucursal => {
-                if (sucursal.conjunto_pantallas !== undefined)
-                    return sucursal.conjunto_pantallas;
-                return undefined;
-            }).filter(entry => entry !== undefined);
-            const servicios = newState.flatMap(sucursal => {
-                if (sucursal.conjunto_servicios !== undefined)
-                    return sucursal.conjunto_servicios;
-                return undefined;
-            }).filter(entry => entry !== undefined);
-            const departamentos = newState.flatMap(sucursal => {
-                if (sucursal.conjunto_departamentos !== undefined)
-                    return sucursal.conjunto_departamentos;
-                return undefined;
-            }).filter(entry => entry !== undefined);
-            const result = yield prisma.$transaction([
+            if (newState.length === 0) throw new Error('new state data is empty.')
+
+            const agentes: Agentes[] = newState.flatMap(sucursal => {
+                    if (sucursal.conjunto_agentes !== undefined) return sucursal.conjunto_agentes
+                    return undefined
+                }).filter(entry => entry !== undefined) as Agentes[]
+            
+            const pantallas: Pantallas[] = newState.flatMap(sucursal => {
+                if (sucursal.conjunto_pantallas !== undefined) return sucursal.conjunto_pantallas
+                return undefined
+            }).filter(entry => entry !== undefined) as Pantallas[]
+
+            const servicios: Servicios[] = newState.flatMap(sucursal => {
+                if (sucursal.conjunto_servicios !== undefined) return sucursal.conjunto_servicios
+                return undefined
+            }).filter(entry => entry !== undefined) as Servicios[]
+
+            const departamentos: Departamentos[] = newState.flatMap(sucursal => {
+                if (sucursal.conjunto_departamentos !== undefined) return sucursal.conjunto_departamentos
+                return undefined
+            }).filter(entry => entry !== undefined) as Departamentos[]
+
+            const result = await prisma.$transaction([
                 ...newState.map(sucursal => prisma.sucursales.update({
-                    data: Object.assign({}, sucursal),
-                    where: { id: sucursal.id }
-                })),
+                        data: {...sucursal},
+                        where: { id: sucursal.id}
+                    })),
                 ...agentes.map(agente => prisma.agentes.update({
-                    data: Object.assign({}, agente),
-                    where: { id: agente.id }
-                })),
+                        data: {...agente},
+                        where: { id: agente.id}
+                    })),
                 ...pantallas.map(pantalla => prisma.pantallas.update({
-                    data: Object.assign({}, pantalla),
-                    where: { id: pantalla.id }
-                })),
+                        data: {...pantalla},
+                        where: { id: pantalla.id}
+                    })),
                 ...servicios.map(servicio => prisma.servicios.update({
-                    data: Object.assign({}, servicio),
-                    where: { id: servicio.id }
-                })),
+                        data: {...servicio},
+                        where: { id: servicio.id}
+                    })),
                 ...departamentos.map(departamento => prisma.departamentos.update({
-                    data: Object.assign({}, departamento),
-                    where: { id: departamento.id }
-                })),
+                        data: {...departamento},
+                        where: { id: departamento.id}
+                    })),
             ])
-                .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-                yield prisma.$disconnect();
-            }));
-            resolve(result);
-            return true;
+            .finally(async () => {
+                await prisma.$disconnect()
+            })
+
+            resolve(result)
+            return true
+
+        } catch (error) {
+
+            console.error("Error trying massive update persistent state data to database.", {error})
+            reject(error)
+
+            return false
         }
-        catch (error) {
-            console.error("Error trying massive update persistent state data to database.", { error });
-            reject(error);
-            return false;
-        }
-    }));
-};
+    })
+}
+*/
 /**
  * Metodo con ejecucion asincrona para actualizar
  * o setear el estado en la constante QUEUE_STATE
  */
-const refreshQueueState = () => {
-    new Promise((resolve, reject) => __awaiter(void 0, void 0, void 0, function* () {
-        try {
-            const turnosActivos = yield prisma.turnos.findMany({
-                where: {
-                    fecha_turno: (0, time_helpers_1.prismaTodayFilter)()
-                },
-                include: {
-                    estado_turno: true,
-                    atenciones_turnos_servicios: {
-                        include: {
-                            servicio: true,
-                            agente: {
-                                include: {
-                                    departamento_sucursal: {
-                                        select: {
-                                            sucursal: {
-                                                select: {
-                                                    id: true,
-                                                    pantallas: {
-                                                        select: {
-                                                            key: true
-                                                        }
+const refreshQueueState = () => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const turnosActivos = yield prisma.turnos.findMany({
+            where: {
+                fecha_turno: (0, time_helpers_1.prismaTodayFilter)()
+            },
+            include: {
+                estado_turno: true,
+                atenciones_turnos_servicios: {
+                    include: {
+                        servicio: true,
+                        agente: {
+                            include: {
+                                departamento_sucursal: {
+                                    select: {
+                                        sucursal: {
+                                            select: {
+                                                id: true,
+                                                pantallas: {
+                                                    select: {
+                                                        key: true
                                                     }
                                                 }
-                                            },
-                                            departamento: true
-                                        }
+                                            }
+                                        },
+                                        departamento: true
                                     }
                                 }
                             }
                         }
                     }
                 }
-            })
-                .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-                yield prisma.$disconnect();
-            }));
-            if (turnosActivos === null)
-                throw new Error("data got from database is empty.");
-            QUEUE_STATE.length = 0;
-            turnosActivos.map(turno => {
+            }
+        })
+            .finally(() => __awaiter(void 0, void 0, void 0, function* () {
+            yield prisma.$disconnect();
+        }));
+        if (turnosActivos === null)
+            throw new Error("data got from database is empty.");
+        QUEUE_STATE.length = 0;
+        turnosActivos.map(turno => {
+            var _a;
+            const displaysUUID = turno.atenciones_turnos_servicios
+                .map(atenciones => atenciones.agente.departamento_sucursal.sucursal.pantallas)[0]
+                .map(pantalla => pantalla.key)
+                .map(key => (0, filtering_1.stringToUUID)(key))
+                .filter(entry => entry !== null);
+            const atencion = turno.atenciones_turnos_servicios
+                .map((atencion, index) => {
                 var _a;
-                const displaysUUID = turno.atenciones_turnos_servicios
-                    .map(atenciones => atenciones.agente.departamento_sucursal.sucursal.pantallas)[0]
-                    .map(pantalla => pantalla.key)
-                    .map(key => (0, filtering_1.stringToUUID)(key))
-                    .filter(entry => entry !== null);
-                const atencion = turno.atenciones_turnos_servicios
-                    .map((atencion, index) => {
-                    var _a;
-                    return Object.assign(Object.assign({}, atencion), { state_id: index, servicio: atencion.servicio, departamento: atencion.agente.departamento_sucursal.departamento, agente: atencion.agente, estado_turno_name: (_a = turno.estado_turno) === null || _a === void 0 ? void 0 : _a.descripcion });
-                })
-                    .filter(entry => entry !== null);
-                const entry = Object.assign(Object.assign({}, turno), { estado_turno_name: (_a = turno.estado_turno) === null || _a === void 0 ? void 0 : _a.descripcion, atencion,
-                    displaysUUID });
-                QUEUE_STATE.push(entry);
-            });
-            resolve(PERSISTENT_DATA);
-            return true;
-        }
-        catch (error) {
-            console.error("Error trying setting up PERSISTEN_DATA on state", { error });
-            reject(error);
-            return false;
-        }
-        finally {
-            console.log("Async refresh QUEUE_STATE", { length: QUEUE_STATE.length });
-        }
-    }));
-};
+                return Object.assign(Object.assign({}, atencion), { state_id: index, servicio: atencion.servicio, departamento: atencion.agente.departamento_sucursal.departamento, agente: atencion.agente, estado_turno_name: (_a = turno.estado_turno) === null || _a === void 0 ? void 0 : _a.descripcion });
+            })
+                .filter(entry => entry !== null);
+            const entry = Object.assign(Object.assign({}, turno), { estado_turno_name: (_a = turno.estado_turno) === null || _a === void 0 ? void 0 : _a.descripcion, atencion,
+                displaysUUID });
+            QUEUE_STATE.push(entry);
+        });
+        return true;
+    }
+    catch (error) {
+        console.error("Error trying setting up PERSISTEN_DATA on state", { error });
+        return false;
+    }
+    finally {
+        console.log("Async refresh QUEUE_STATE", { length: QUEUE_STATE.length });
+    }
+});
 exports.refreshQueueState = refreshQueueState;
 /**
  * Metodo con ejecucion asincrona para subir el nuevo estado
  * del la constante QUEUE_STATE a la base de datos y refrescar el local
  */
-const updateQueueState = (newState) => {
-    new Promise((resolve, reject) => __awaiter(void 0, void 0, void 0, function* () {
+/*
+const updateQueueState = (newState: typeof QUEUE_STATE) => {
+    new Promise ( async (resolve, reject) => {
         try {
-            if (newState.length === 0)
-                throw new Error('new state data is empty.');
-            const atenciones = newState.flatMap(turnos => turnos.atencion);
-            const result = yield prisma.$transaction([
+            if (newState.length === 0) throw new Error('new state data is empty.')
+
+            const atenciones: Atenciones_turnos_servicios[] = newState.flatMap(turnos => turnos.atencion)
+
+            const result = await prisma.$transaction([
                 ...newState.map(turno => prisma.turnos.update({
-                    data: Object.assign({}, turno),
+                    data: {...turno},
                     where: { id: turno.id }
                 })),
                 ...atenciones.map(atencion => prisma.atenciones_turnos_servicios.update({
-                    data: Object.assign({}, atencion),
+                    data: {...atencion},
                     where: {
                         turno_id_agente_id_servicio_id: {
                             turno_id: atencion.turno_id,
@@ -287,20 +279,24 @@ const updateQueueState = (newState) => {
                     }
                 })),
             ])
-                .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-                yield prisma.$disconnect();
-            }));
-            resolve(result);
-            (0, exports.refreshQueueState)();
-            return true;
+            .finally(async () => {
+                await prisma.$disconnect()
+            })
+
+            resolve(result)
+            refreshQueueState()
+            return true
+
+        } catch (error) {
+
+            console.error("Error trying massive update persistent state data to database.", {error})
+            reject(error)
+
+            return false
         }
-        catch (error) {
-            console.error("Error trying massive update persistent state data to database.", { error });
-            reject(error);
-            return false;
-        }
-    }));
-};
+    })
+}
+*/
 /**
  * Devuelve el servicio que coincida con la ID
  * @param id servicio
@@ -308,7 +304,10 @@ const updateQueueState = (newState) => {
  */
 const getServiceById = (id) => {
     var _a;
-    return (_a = PERSISTENT_DATA.map(sucursal => { var _a; return (_a = sucursal.conjunto_servicios) === null || _a === void 0 ? void 0 : _a.filter(servicio => servicio.id === id)[0]; })[0]) !== null && _a !== void 0 ? _a : null;
+    return (_a = PERSISTENT_DATA.map(sucursal => {
+        console.table(sucursal.conjunto_servicios);
+        return sucursal.conjunto_servicios.filter(servicio => servicio.id === id)[0];
+    })[0]) !== null && _a !== void 0 ? _a : null;
 };
 exports.getServiceById = getServiceById;
 /**
@@ -347,33 +346,57 @@ exports.GetAllAvailableServicesInSucursal = GetAllAvailableServicesInSucursal;
  * @param param0
  * @returns
  */
-const setWaitingState = ({ usuario_id, esperando = true, servicios_destino_id }) => {
-    const found = PERSISTENT_DATA
-        .map(sucursal => {
-        if (sucursal.conjunto_agentes !== undefined) {
-            return sucursal.conjunto_agentes.filter(agente => (agente.usuario_id === usuario_id // Valida que el agente tenga relacion con el usuario logeado
-            ))[0];
-        }
-        return null;
-    }).filter(entry => entry !== null)[0];
-    if (found === null)
+const setWaitingState = ({ usuario_id, esperando = true, servicios_destino_id }) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        let isResolve = false;
+        const updatableState = structuredClone(PERSISTENT_DATA);
+        PERSISTENT_DATA.length = 0;
+        updatableState
+            .forEach(sucursal => {
+            if (sucursal.conjunto_agentes !== undefined) {
+                sucursal.conjunto_agentes.forEach(agente => {
+                    // Valida que el agente tenga relacion con el usuario logeado
+                    if (agente.usuario_id === usuario_id) {
+                        agente.esperando = esperando;
+                        agente.esperando_servicios_destino_id = servicios_destino_id;
+                        isResolve = true;
+                    }
+                    return agente;
+                });
+            }
+            PERSISTENT_DATA.push(sucursal);
+        });
+        yield prisma.agentes.update({
+            where: { usuario_id },
+            data: { esperando }
+        });
+        return isResolve;
+    }
+    catch (error) {
+        console.error(`Error in global state when trying to update agent state to user id ${usuario_id}`, error);
         return false;
+    }
+    /*
     const newState = PERSISTENT_DATA.map(sucursal => {
         if (sucursal.conjunto_agentes !== undefined) {
             const newAgentes = sucursal.conjunto_agentes.map(agente => {
                 if (agente.id === found.id) {
-                    agente.esperando = esperando; // Setear el estado
-                    agente.esperando_servicios_destino_id = servicios_destino_id;
+                    agente.esperando = esperando // Setear el estado
+                    agente.esperando_servicios_destino_id = servicios_destino_id
                 }
-                return agente;
-            });
-            return Object.assign(Object.assign({}, sucursal), { agentes: newAgentes });
+                return agente
+            })
+            return {
+                ...sucursal,
+                agentes: newAgentes
+            }
         }
-        return sucursal;
-    });
-    updatePersistentData(newState);
-    return true;
-};
+        return sucursal
+    })
+
+    updatePersistentData(newState)
+    */
+});
 exports.setWaitingState = setWaitingState;
 /**
  * Metodo ejecutado por la pantalla en loop
@@ -457,8 +480,8 @@ const getCallQueueState = ({ displayUUID }) => {
     if (tempStatus.get(displayUUID) === 'NONE') {
         tempStatus.set(displayUUID, 'LOADING');
         (0, audio_manager_1.prepareCallingAudio)({
-            displayUUID,
-            params: prepareCallAudioInfo(firstFilter.secuencia_ticket, firstUncalled.departamento.siglas)
+            uuid: displayUUID,
+            params: (0, string_compose_1.prepareCallAudioInfo)(firstFilter.secuencia_ticket, firstUncalled.departamento.siglas)
         }).then(audioResult => {
             console.log({ audioResult });
             tempStatus.set(displayUUID, 'READY');
@@ -483,18 +506,22 @@ const setCallQueueState = ({ state_id, displayUUID, estatus }) => {
     if (attendReg === null)
         return false;
     attendReg.estatus_llamada = estatus;
+    /*
     const newState = QUEUE_STATE.map(turno => {
         if (turno.id === firstFilter.id && turno.atencion !== null) {
             const atencion = turno.atencion.map(atencion => {
-                if (atencion.state_id === state_id)
-                    return attendReg;
-                return atencion;
-            });
-            return Object.assign(Object.assign({}, turno), { atencion });
+                if (atencion.state_id === state_id)  return attendReg
+                return atencion
+            })
+            return {
+                ...turno,
+                atencion
+            }
         }
-        return turno;
-    });
-    updateQueueState(newState);
+        return turno
+    })
+    */
+    //updateQueueState(newState)
     /*
     new Promise( async (resolve, rejected) => {
         await prisma.atenciones_turnos_servicios.update({
@@ -588,7 +615,7 @@ const getAttendingQueueByUserId = ({ usuario_id }) => {
 exports.getAttendingQueueByUserId = getAttendingQueueByUserId;
 /**
  * Metodo ejecutado por el agente
- * Agrega el tiempo de hora_inicio cuando cambia el estado a ATENDIENDO,
+ * Crea si no exitste el registro de atencion, agrega el tiempo de hora_inicio cuando cambia el estado a ATENDIENDO,
  * si se pone EN_ESPERA, DESCANSANDO se setea la HORA_FIN y al reanudar se hace lo siguiente:
  * - Se toma la diferencia entre la hora actual con la HORA_FIN en segundos
  * y se guarda en el campo ESPERA_SEGUNDOS.
@@ -620,14 +647,14 @@ const setAttendingState = ({ agente_id, servicio_id, turno_id, estado_turno_id, 
     const endTime = (_d = attendReg.hora_fin) !== null && _d !== void 0 ? _d : nowTime;
     const waitTimeSeconds = preWaitSeconds + Math.floor((nowTime.getTime() - endTime.getTime()) / 1000);
     const { descripcion: estado } = estado_turno;
-    let attendWillDelete = false;
+    //let attendWillDelete: boolean = false
     /**
      * El agente devuelve el turno a la cola para el mismo servicio
      * - Elimina la atencion registrada
      * - Situa el orden del turno X posiciones atras
      */
     if (['NUEVA_SESION'].includes(estado)) {
-        attendWillDelete = true;
+        //attendWillDelete = true
         (0, flow_manage_1.updatePositionOrderList)({ turno_id, nueva_posicion: 3 }).then(result => {
             console.log(`Rows updated when turno_id: ${turno_id} was reset to NUEVA_SESION`, result);
         });
@@ -706,21 +733,25 @@ const setAttendingState = ({ agente_id, servicio_id, turno_id, estado_turno_id, 
     }
     // Actualiza el estado y el turno con los parametros previamente
     // modificados, en caso de ser eliminado no se incluye
-    const newState = QUEUE_STATE.map(turno => {
+    /*const newState = QUEUE_STATE.map(turno => {
         if (turno.id === firstFilter.id && turno.atencion !== null) {
             const atencion = turno.atencion.map(atencion => {
                 if (atencion.agente_id === agente_id) {
-                    if (attendWillDelete)
-                        return null;
-                    return attendReg;
+                    if (attendWillDelete) return null
+                    return attendReg
                 }
-                return atencion;
-            }).filter(entry => entry !== null);
-            return Object.assign(Object.assign({}, turno), { atencion });
+                return atencion
+            }).filter(entry => entry !== null) as TurnosActivos[]
+
+            return {
+                ...turno,
+                atencion
+            }
         }
-        return turno;
-    });
-    updateQueueState(newState);
+        return turno
+    })
+    */
+    //updateQueueState(newState)
     return true;
 });
 exports.setAttendingState = setAttendingState;
@@ -730,30 +761,23 @@ exports.setAttendingState = setAttendingState;
  * Asigna las pantallas segun la sucursal y los agentes asignados al servicio segun su grupo.
  * @param param0
  */
-const addNewQueueState = ({ turno }) => {
-    new Promise((resolve, reject) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a;
-        try {
-            const turnoEstado = (_a = QUEUE_STATE.filter(entry => entry.id === turno.id)[0]) !== null && _a !== void 0 ? _a : null;
-            if (turnoEstado === null) {
-                const nuevoTurno = yield prisma.turnos.findFirst({ where: { id: turno.id } });
-                if (nuevoTurno === null)
-                    throw new Error("Not Turnos was found");
-                (0, exports.refreshQueueState)();
-                return (0, exports.addNewQueueState)({ turno });
-            }
-            (0, flow_manage_1.addNewFlowList)({ turno });
-            resolve(turnoEstado);
-            console.log({ turnoEstado });
-            return true;
+const addNewQueueState = ({ turno }) => __awaiter(void 0, void 0, void 0, function* () {
+    var _e;
+    try {
+        const turnoEstado = (_e = QUEUE_STATE.filter(entry => entry.id === turno.id)[0]) !== null && _e !== void 0 ? _e : null;
+        if (turnoEstado === null) {
+            (0, exports.refreshQueueState)();
+            return (0, exports.addNewQueueState)({ turno });
         }
-        catch (error) {
-            console.log("Error while add new queue to state", { error });
-            reject(error);
-            return false;
-        }
-    }));
-};
+        (0, flow_manage_1.addNewFlowList)({ turno });
+        console.log({ turnoEstado });
+        return true;
+    }
+    catch (error) {
+        console.log("Error while add new queue to state", { error });
+        return false;
+    }
+});
 exports.addNewQueueState = addNewQueueState;
 /**
  * Funcion asincrona de busqueda y creacion de estado de atencion.
@@ -801,54 +825,6 @@ const findOrCreateAttendingReg = ({ turno, agente_id, servicio_id }) => {
             throw new Error("Error: cannot create a new Atencio_Turno_Servicio");
         return created;
     }))().then(() => (0, exports.refreshQueueState)());
-};
-const prepareCallAudioInfo = (secuencia_ticket, siglas_departamento, prefijo_servicio) => {
-    var _a, _b;
-    const [letters, numbers] = (_a = secuencia_ticket.match(/([a-zA-Z]+)|(\d+)/g)) !== null && _a !== void 0 ? _a : [];
-    const initDing = {
-        pos: 0,
-        type: 'utils',
-        name: 'ding'
-    };
-    const lettersMap = (_b = letters === null || letters === void 0 ? void 0 : letters.toUpperCase().split('').map((letter, i) => ({
-        pos: i + 1,
-        type: 'letters',
-        name: letter
-    }))) !== null && _b !== void 0 ? _b : [];
-    const numbersMap = [];
-    const deptMap = {
-        pos: 6,
-        type: 'department',
-        name: siglas_departamento.toUpperCase()
-    };
-    const servMap = prefijo_servicio ? {
-        pos: 8,
-        type: 'services',
-        name: prefijo_servicio.toUpperCase()
-    } : null;
-    const value = Number(numbers);
-    const decimalsAfterTen = [2, 3, 4, 5, 6, 7, 8, 9].map(num => num * 10);
-    if (value <= 9) {
-        numbersMap.push({ pos: 4, type: 'numbers', name: '0' });
-        numbersMap.push({ pos: 5, type: 'numbers', name: value.toString() });
-    }
-    if (value >= 10 && value <= 20 || decimalsAfterTen.includes(value)) {
-        numbersMap.push({ pos: 4, type: 'numbers', name: value.toString() });
-    }
-    const [decimal, unit] = value.toString().split("");
-    if (value >= 21 && value <= 29) {
-        numbersMap.push({ pos: 4, type: 'numbers', name: decimal + "X" });
-        numbersMap.push({ pos: 5, type: 'numbers', name: unit });
-    }
-    if (value > 30 && decimalsAfterTen.includes(value) === false) {
-        numbersMap.push({ pos: 4, type: 'numbers', name: decimal + "0" });
-        numbersMap.push({ pos: 5, type: 'numbers', name: "X" + unit });
-    }
-    const joinObjects = [...lettersMap, ...numbersMap, deptMap, initDing];
-    if (servMap) {
-        joinObjects.push({ pos: 7, type: 'utils', name: 'PARA' }, servMap);
-    }
-    return joinObjects;
 };
 const getDisplayCallTittle = ({ turno }) => {
     var _a;

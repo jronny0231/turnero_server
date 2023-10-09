@@ -71,48 +71,35 @@ const prisma = new PrismaClient();
 
 const getAvailableRelatedServices = async ({turno}: {turno?: Turnos}) => {
     try {
-        if (turno !== undefined) {
-            return await prisma.servicios_seguros.findMany({
-                where: {
-                    estatus: true,
-                    servicio_destino_id: turno.servicio_destino_id,
-                    servicio: {
-                        turnos: {
-                            some: {
-                                id: turno.id
-                            }
-                        },
-                        Servicios_departamentos_sucursales: {
-                            some: {
-                                departamento_sucursal: {
-                                    sucursal_id: turno.sucursal_id
-                                }
+        return await prisma.servicios_seguros.findMany({
+            where: (turno === undefined) ?  { estatus: true } : {
+                estatus: true,
+                servicio_destino_id: turno.servicio_destino_id,
+                servicio: {
+                    turnos: {
+                        some: {
+                            id: turno.id
+                        }
+                    },
+                    Servicios_departamentos_sucursales: {
+                        some: {
+                            departamento_sucursal: {
+                                sucursal_id: turno.sucursal_id
                             }
                         }
                     }
-                },
-                select: {
-                    protocolo_id: true,
-                    servicio_destino_id: true,
-                    servicio: true,
-                    cobertura: true,
-                    prioridad: true,
-                }, orderBy: { prioridad: 'asc' }
-            })
-            .finally(async () => {
-                await prisma.$disconnect()
-            })
-        }
-
-        return await prisma.servicios_seguros.findMany({
-            where: { estatus: true },
+                }
+            },
             select: {
                 protocolo_id: true,
+                servicio_destino_id: true,
                 servicio: true,
                 cobertura: true,
                 prioridad: true,
-            },
-            orderBy: { prioridad: 'asc' }
+            }, orderBy: { prioridad: 'asc' }
+        })
+        .finally(async () => {
+            await prisma.$disconnect()
         })
         
         
@@ -216,7 +203,7 @@ export const getNextServiceId = async ({turno_id}: {turno_id: number}): Promise<
 
 
 type UnrelatedFilter = {
-    seguro_id?:number,
+    seguro_id?:number | null,
     sucursal_id:number,
     servicio_destino_id:number
 }

@@ -95,12 +95,12 @@ export const UpdateAgent = async (req: Request, res: Response) => {
     }
 }
 
-export const UpdateAgentQueueStatus = (req: Request, res: Response) => {
+export const UpdateAgentQueueStatus = async (req: Request, res: Response) => {
     const usuario_id: number = res.locals.payload.id
     const data: updateAgentStatusType['body']  = req.body
 
     try {
-        const result = setWaitingState({...data, usuario_id})
+        const result = await setWaitingState({...data, usuario_id})
         
         if (result === false){
             return res.status(404).json({success: false,

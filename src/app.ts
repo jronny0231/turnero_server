@@ -11,7 +11,6 @@ import scheduleRoutes from "./routes/schedule.routes";
 import audioRoutes from "./routes/records.routes";
 import officeRoutes from "./routes/office.routes";
 import departmentRoutes from "./routes/department.routes";
-import awsRoutes from "./routes/aws.routes";
 
 wss.on("connection", () => {})
 
@@ -30,6 +29,5 @@ App.use(`/api/v${version}/schedule`, scheduleRoutes)
 App.use(`/api/v${version}/audio`, audioRoutes)
 App.use(`/api/v${version}/offices`, officeRoutes)
 App.use(`/api/v${version}/departments`, departmentRoutes)
-App.use(`/api/v${version}/aws`, awsRoutes)
 
 export default App;

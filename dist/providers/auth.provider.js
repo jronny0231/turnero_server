@@ -8,12 +8,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RefreshToken = exports.ResetPassword = exports.UpdatePassword = exports.UpdateAccount = exports.GetAccount = exports.Logout = exports.Login = exports.ConfirmPasswordForm = exports.LoginForm = void 0;
+exports.RefreshToken = exports.ResetPassword = exports.UpdatePassword = exports.UpdateAccount = exports.GetAccount = exports.Logout = exports.Login = exports.verifyUserName = exports.ConfirmPasswordForm = exports.LoginForm = void 0;
 const client_1 = require("@prisma/client");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jwt_helper_1 = require("../services/jwt.helper");
@@ -34,6 +45,34 @@ const ConfirmPasswordForm = (_req, res) => {
     return res.sendFile(pathfile);
 };
 exports.ConfirmPasswordForm = ConfirmPasswordForm;
+const verifyUserName = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const body = req.body;
+    try {
+        yield prisma.$connect();
+        const _b = yield checkUserAccount(body.username), { data: user } = _b, result = __rest(_b, ["data"]);
+        if (user === undefined) {
+            return res.status(result.code).json(Object.assign({}, result));
+        }
+        const token = (0, jwt_helper_1.createToken)({
+            id: user.id,
+            type: 'USER',
+            username: user.username,
+            correo: user.correo
+        });
+        if (bcrypt_1.default.compareSync(DEFAULT_PASSWORD, user.password)) {
+            return res.status(203).json({ sucess: true, message: `Redirect to update password form`, data: token });
+        }
+        return res.json({ sucess: true, message: `User ${body.username} confirmed!` });
+    }
+    catch (error) {
+        console.error(`Error trying check account of username: ${body.username}`, { error });
+        return res.status(500).json({ success: false, message: `Error trying check account of username: ${body.username}`, data: error });
+    }
+    finally {
+        yield prisma.$disconnect();
+    }
+});
+exports.verifyUserName = verifyUserName;
 const Login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const body = req.body;
     try {
@@ -42,27 +81,22 @@ const Login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             return (superLogin.success) ? res.json(superLogin) : res.status(400).json(superLogin);
         }
         yield prisma.$connect();
-        const user = yield prisma.usuarios.findFirst({
-            where: { username: { equals: body.username, mode: 'insensitive' } }
-        });
-        if (user === null) {
-            return res.status(400).json({ success: false, message: 'Username or Password not match' });
+        const _c = yield checkUserAccount(body.username), { data: user } = _c, result = __rest(_c, ["data"]);
+        if (user === undefined) {
+            return res.status(result.code).json(Object.assign({}, result));
         }
-        if (user.activo === false) {
-            return res.status(404).json({ success: false, message: 'El usuario no esa activo, hable con su administrador' });
-        }
-        const token = (0, jwt_helper_1.createToken)({
-            id: user.id,
-            type: 'USER',
-            username: user.username,
-            correo: user.correo
-        });
         /*
         if (bcrypt.compareSync(DEFAULT_PASSWORD, user.password)) {
             return res.redirect(req.baseUrl + '/reset-password' + '?token=' + token)
         }
         */
         if (bcrypt_1.default.compareSync(body.password, user.password)) {
+            const token = (0, jwt_helper_1.createToken)({
+                id: user.id,
+                type: 'USER',
+                username: user.username,
+                correo: user.correo
+            });
             yield prisma.usuarios.update({
                 where: { id: user.id },
                 data: { token }
@@ -246,6 +280,31 @@ const RefreshToken = (_req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.RefreshToken = RefreshToken;
+const checkUserAccount = (username) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield prisma.usuarios.findFirst({
+        where: { username: { equals: username, mode: 'insensitive' } }
+    });
+    if (user === null) {
+        return {
+            code: 400,
+            success: false,
+            message: 'Username or Password not match'
+        };
+    }
+    if (user.activo === false) {
+        return {
+            code: 404,
+            success: false,
+            message: `User ${username} is not active, comunicate with administrator`
+        };
+    }
+    return {
+        code: 200,
+        success: true,
+        message: `User ${username} is successfully getted`,
+        data: user
+    };
+});
 const getSuperUserData = () => {
     var _a, _b;
     const data = (_a = process.env.SUPER_USER) === null || _a === void 0 ? void 0 : _a.split(":");

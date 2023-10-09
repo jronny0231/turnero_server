@@ -5,8 +5,8 @@ export const userSchema = z.object({
     nombres: z.string().min(1).max(50),
     correo: z.string().email().max(60),
     username: z.string().min(3).max(15)
-                .regex(/^[A-Z][a-zA-Z0-9_]+$/,
-                    "Must start with uppercase and only include letters, numbers and one underscore"),
+                .regex(/^[a-zA-Z0-9_]+$/,
+                    "Must contains only letters, numbers and underscores"),
     password: z.string().min(8).max(80)
                 .regex(/^(?=.*[a-z]).+$/,
                     "Must contain at least one LOWERCASE letter")

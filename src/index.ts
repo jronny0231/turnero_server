@@ -1,6 +1,6 @@
 import App from "./app";
 import { Request, Response } from "express";
-import { initialize } from "./core/admin";
+import { initialize } from "./core";
 
 initialize() // Initialize constants cache core data
 

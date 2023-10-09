@@ -9,8 +9,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeleteDepartment = exports.AddServicesToDepartment = exports.UpdateDepartment = exports.StoreNewDepartmentWithServices = exports.StoreNewDepartment = exports.GetDepartmentById = exports.getAllDepartments = void 0;
+exports.createSucursalDepartamentoServicios = exports.DeleteDepartment = exports.AddServicesToDepartment = exports.UpdateDepartment = exports.StoreNewDepartmentWithServices = exports.StoreNewDepartment = exports.GetDepartmentById = exports.getAllDepartments = void 0;
 const client_1 = require("@prisma/client");
+const service_controller_1 = require("./service.controller");
 const prisma = new client_1.PrismaClient;
 const getAllDepartments = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -73,46 +74,33 @@ const StoreNewDepartmentWithServices = (req, res) => __awaiter(void 0, void 0, v
             data: data.departamento
         });
         if (query.sucursal_id) {
-            const sucursalDepartamento = yield prisma.departamentos_sucursales.create({
-                data: {
-                    sucursal_id: query.sucursal_id,
-                    departamento_id: nuevoDepartamento.id
-                }
+            const result = yield (0, exports.createSucursalDepartamentoServicios)({
+                sucursal_id: query.sucursal_id,
+                departamento_id: nuevoDepartamento.id,
+                servicios: data.servicios
             });
-            const servicios = yield prisma.servicios.findMany();
-            yield prisma.$transaction([
-                ...data.servicios.data.map(servicio => {
-                    const type = data.servicios.serviceField;
-                    if (type === 'id') {
-                        return prisma.servicios_departamentos_sucursales.create({
-                            data: {
-                                servicio_id: Number(servicio),
-                                departamento_sucursal_refId: sucursalDepartamento.refId
-                            },
-                            select: { servicio: true }
-                        });
-                    }
-                    if (type === 'nombre_corto') {
-                        const idServicio = servicios.filter(service => service.nombre_corto === servicio)[0];
-                        return prisma.servicios_departamentos_sucursales.create({
-                            data: {
-                                servicio_id: idServicio.id,
-                                departamento_sucursal_refId: sucursalDepartamento.refId
-                            },
-                            select: { servicio: true }
-                        });
-                    }
-                    // Prefijo
-                    const idServicio = servicios.filter(service => service.prefijo === servicio)[0];
-                    return prisma.servicios_departamentos_sucursales.create({
-                        data: {
-                            servicio_id: idServicio.id,
-                            departamento_sucursal_refId: sucursalDepartamento.refId
-                        },
-                        select: { servicio: true }
-                    });
-                })
-            ]);
+            return res.json({
+                success: true,
+                message: 'Departamento in sucursal with servicios data was successfully created',
+                data: result
+            });
+        }
+        const sucursales = yield prisma.sucursales.findMany({ select: { id: true } });
+        if (sucursales.length > 0) {
+            const results = [];
+            for (const sucursal of sucursales) {
+                const result = yield (0, exports.createSucursalDepartamentoServicios)({
+                    sucursal_id: sucursal.id,
+                    departamento_id: nuevoDepartamento.id,
+                    servicios: data.servicios
+                });
+                results.push(result);
+            }
+            return res.json({
+                success: true,
+                message: 'Departamento in all sucursales with servicios data was successfully created',
+                data: results
+            });
         }
         return res.json({ success: true, message: 'Departamento with servicios data was successfully created', data: nuevoDepartamento });
     }
@@ -142,67 +130,26 @@ const UpdateDepartment = (req, res) => __awaiter(void 0, void 0, void 0, functio
 });
 exports.UpdateDepartment = UpdateDepartment;
 const AddServicesToDepartment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const params = req.params;
+    const id = Number(req.params);
     const data = req.body;
     try {
         yield prisma.$connect();
         const findDepartamento = yield prisma.departamentos.findFirst({
-            where: { id: params.id }
+            where: { id }
         });
         if (findDepartamento === null) {
-            return res.status(404).json({ success: false, message: `Departamento with id ${params.id} not found` });
+            return res.status(404).json({ success: false, message: `Departamento with id ${id} not found` });
         }
-        const sucursalDepartamento = yield prisma.departamentos_sucursales.upsert({
-            where: {
-                departamento_id_sucursal_id: {
-                    sucursal_id: data.sucursal_id,
-                    departamento_id: findDepartamento.id
-                }
-            },
-            create: {
-                sucursal_id: data.sucursal_id,
-                departamento_id: findDepartamento.id
-            },
-            update: {
-                sucursal_id: data.sucursal_id,
-                departamento_id: findDepartamento.id
-            }
+        const result = yield (0, exports.createSucursalDepartamentoServicios)({
+            sucursal_id: data.sucursal_id,
+            departamento_id: findDepartamento.id,
+            servicios: data.servicios
         });
-        const servicios = yield prisma.servicios.findMany();
-        const relatedServices = yield prisma.$transaction([
-            ...data.servicios.data.map(servicio => {
-                const type = data.servicios.serviceField;
-                if (type === 'id') {
-                    return prisma.servicios_departamentos_sucursales.create({
-                        data: {
-                            servicio_id: Number(servicio),
-                            departamento_sucursal_refId: sucursalDepartamento.refId
-                        },
-                        select: { servicio: true }
-                    });
-                }
-                if (type === 'nombre_corto') {
-                    const idServicio = servicios.filter(service => service.nombre_corto === servicio)[0];
-                    return prisma.servicios_departamentos_sucursales.create({
-                        data: {
-                            servicio_id: idServicio.id,
-                            departamento_sucursal_refId: sucursalDepartamento.refId
-                        },
-                        select: { servicio: true }
-                    });
-                }
-                // Prefijo
-                const idServicio = servicios.filter(service => service.prefijo === servicio)[0];
-                return prisma.servicios_departamentos_sucursales.create({
-                    data: {
-                        servicio_id: idServicio.id,
-                        departamento_sucursal_refId: sucursalDepartamento.refId
-                    },
-                    select: { servicio: true }
-                });
-            })
-        ]);
-        return res.json({ success: true, message: 'Servicios in Departamento data was successfully added', data: Object.assign(Object.assign({}, findDepartamento), { relatedServices }) });
+        return res.json({
+            success: true,
+            message: 'Departamento in sucursal with servicios data was successfully created',
+            data: result
+        });
     }
     catch (error) {
         return res.status(500).json({ message: 'Server status error adding servicios in Departamento.', data: error });
@@ -226,3 +173,44 @@ const DeleteDepartment = (req, res) => __awaiter(void 0, void 0, void 0, functio
     }
 });
 exports.DeleteDepartment = DeleteDepartment;
+/**
+ * Create sucursal_departament_services related
+ */
+const createSucursalDepartamentoServicios = (data) => __awaiter(void 0, void 0, void 0, function* () {
+    const sucursalDepartamento = yield prisma.departamentos_sucursales.upsert({
+        where: {
+            departamento_id_sucursal_id: {
+                sucursal_id: data.sucursal_id,
+                departamento_id: data.departamento_id
+            }
+        },
+        create: {
+            sucursal_id: data.sucursal_id,
+            departamento_id: data.departamento_id
+        },
+        update: {
+            sucursal_id: data.sucursal_id,
+            departamento_id: data.departamento_id
+        },
+        select: {
+            refId: true,
+            sucursal: { select: { descripcion: true } },
+            departamento: { select: { descripcion: true } }
+        }
+    });
+    const services_id = (0, service_controller_1.getIdsFromDiscriminatedSearch)(data.servicios);
+    const relatedServices = yield prisma.$transaction([
+        ...services_id.map(servicio_id => prisma.servicios_departamentos_sucursales.create({
+            data: {
+                servicio_id,
+                departamento_sucursal_refId: sucursalDepartamento.refId
+            }
+        }))
+    ]);
+    return {
+        sucursal: sucursalDepartamento.sucursal.descripcion,
+        departamento: sucursalDepartamento.departamento.descripcion,
+        servicios: relatedServices
+    };
+});
+exports.createSucursalDepartamentoServicios = createSucursalDepartamentoServicios;

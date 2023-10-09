@@ -43,8 +43,9 @@ export type DisplayQueue = {
     tittle: string,
     callStatus: turno_llamada
     message: {
-        servicio: string
-        departamento: string
+        servicio?: string
+        departamento?: string
+        agente?: string
     }
 };
 

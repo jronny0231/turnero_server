@@ -31,5 +31,6 @@ const controller = __importStar(require("../controllers/records.controller"));
 const validation_middlewares_1 = __importDefault(require("../middlewares/validation.middlewares"));
 const records_schema_1 = require("../schemas/records.schema");
 const router = express_1.default.Router();
+router.post('/stream-queue', (0, validation_middlewares_1.default)(records_schema_1.setQueueCallAudio), controller.preparingCallingAudio);
 router.get('/stream-queue/:uuid', (0, validation_middlewares_1.default)(records_schema_1.getQueueCallAudio), controller.getCallingAudiobyDisplay);
 exports.default = router;

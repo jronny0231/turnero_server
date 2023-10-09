@@ -85,11 +85,11 @@ const UpdateAgent = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     }
 });
 exports.UpdateAgent = UpdateAgent;
-const UpdateAgentQueueStatus = (req, res) => {
+const UpdateAgentQueueStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const usuario_id = res.locals.payload.id;
     const data = req.body;
     try {
-        const result = (0, global_state_1.setWaitingState)(Object.assign(Object.assign({}, data), { usuario_id }));
+        const result = yield (0, global_state_1.setWaitingState)(Object.assign(Object.assign({}, data), { usuario_id }));
         if (result === false) {
             return res.status(404).json({ success: false,
                 message: `Agente with usuario id ${usuario_id} availability was not updated` });
@@ -99,7 +99,7 @@ const UpdateAgentQueueStatus = (req, res) => {
     catch (error) {
         return res.status(500).json({ message: `Server status error updating Agente availability with user id: ${usuario_id} data.`, data: error });
     }
-};
+});
 exports.UpdateAgentQueueStatus = UpdateAgentQueueStatus;
 const DeleteAgent = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const id = Number(req.params.id);

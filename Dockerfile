@@ -11,6 +11,10 @@ RUN npm install
 # If you are building your code for production
 # RUN npm ci --omit=dev
 # Bundle app source
-COPY . .
+COPY dist/. src/.
+COPY public/. public/.
+
+RUN npx prisma migrate deploy
+
 EXPOSE 5000
-CMD [ "node", "server.js" ]
+CMD [ "npm", "start" ]

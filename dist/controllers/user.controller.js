@@ -45,7 +45,7 @@ const StoreNewUser = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     const data = req.body;
     try {
         yield prisma.$connect();
-        const password = yield (0, filtering_1.encryptPassword)(data.password);
+        const password = yield (0, filtering_1.encryptPassword)();
         const usuario = yield prisma.usuarios.create({
             data: Object.assign(Object.assign({}, data), { password, agentes: undefined }),
             select: {

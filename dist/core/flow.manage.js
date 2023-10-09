@@ -18,48 +18,36 @@ const time_helpers_1 = require("../utils/time.helpers");
 const prisma = new client_1.PrismaClient();
 const getAvailableRelatedServices = ({ turno }) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        if (turno !== undefined) {
-            return yield prisma.servicios_seguros.findMany({
-                where: {
-                    estatus: true,
-                    servicio_destino_id: turno.servicio_destino_id,
-                    servicio: {
-                        turnos: {
-                            some: {
-                                id: turno.id
-                            }
-                        },
-                        Servicios_departamentos_sucursales: {
-                            some: {
-                                departamento_sucursal: {
-                                    sucursal_id: turno.sucursal_id
-                                }
+        return yield prisma.servicios_seguros.findMany({
+            where: (turno === undefined) ? { estatus: true } : {
+                estatus: true,
+                servicio_destino_id: turno.servicio_destino_id,
+                servicio: {
+                    turnos: {
+                        some: {
+                            id: turno.id
+                        }
+                    },
+                    Servicios_departamentos_sucursales: {
+                        some: {
+                            departamento_sucursal: {
+                                sucursal_id: turno.sucursal_id
                             }
                         }
                     }
-                },
-                select: {
-                    protocolo_id: true,
-                    servicio_destino_id: true,
-                    servicio: true,
-                    cobertura: true,
-                    prioridad: true,
-                }, orderBy: { prioridad: 'asc' }
-            })
-                .finally(() => __awaiter(void 0, void 0, void 0, function* () {
-                yield prisma.$disconnect();
-            }));
-        }
-        return yield prisma.servicios_seguros.findMany({
-            where: { estatus: true },
+                }
+            },
             select: {
                 protocolo_id: true,
+                servicio_destino_id: true,
                 servicio: true,
                 cobertura: true,
                 prioridad: true,
-            },
-            orderBy: { prioridad: 'asc' }
-        });
+            }, orderBy: { prioridad: 'asc' }
+        })
+            .finally(() => __awaiter(void 0, void 0, void 0, function* () {
+            yield prisma.$disconnect();
+        }));
     }
     catch (error) {
         console.error(`Error trying get services in Servicios_Seguros, turno_id: ${turno === null || turno === void 0 ? void 0 : turno.id}`, { error });

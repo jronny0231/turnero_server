@@ -9,7 +9,7 @@ import { newQueueWithClientType, updateAttendingQueueStateType } from '../schema
 const prisma = new PrismaClient();
 
 
-export const GetAllQueues = async (_req: Request, res: Response) => {
+export const getAllQueues = async (_req: Request, res: Response) => {
     try {
         const turnos = await prisma.turnos.findMany().finally(async () => await prisma.$disconnect())
         
@@ -22,7 +22,7 @@ export const GetAllQueues = async (_req: Request, res: Response) => {
     }
 }
 
-export const GetQueueById = async (req: Request, res: Response) => {
+export const getQueueById = async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id);
 
@@ -40,6 +40,13 @@ export const GetQueueById = async (req: Request, res: Response) => {
     }
 }
 
+/**
+ * Function run by display when a new call state is ready to launch
+ * according to queue state fetchin data and calling audio file and
+ * returns a json with the calling data.
+ * @param res
+ * @returns 
+ */
 export const getNewCallingsByDisplayId = (_req: Request, res: Response) => {
     const key: UUID = res.locals.display
     
@@ -168,7 +175,9 @@ export const StoreNewQueue = (req: Request, res: Response) => {
 
                     return await prisma.clientes.create({
                         data: {
-                            ...body.cliente.body,
+                            tipo_identificacion_id: body.cliente.body.tipo_identificacion_id,
+                            identificacion: body.cliente.body.identificacion,
+                            seguro_id: body.cliente.body.seguro_id,
                             registrado_por_id,
                             nombre_tutorado: (body.cliente.body.es_tutor ? 'sin_definir' : undefined)
                         }
@@ -176,7 +185,7 @@ export const StoreNewQueue = (req: Request, res: Response) => {
                 }
 
                 const servicio_actual_id = await getUnrelatedFirstService({
-                    seguro_id: (await cliente()).seguro_id ?? 0,
+                    seguro_id: (await cliente()).seguro_id,
                     sucursal_id: body.sucursal_id,
                     servicio_destino_id: servicio_destino.id
                 })
@@ -195,7 +204,7 @@ export const StoreNewQueue = (req: Request, res: Response) => {
                         cola_posicion,
                         registrado_por_id,
                         sucursal_id: body.sucursal_id,
-                        fecha_turno: nowTimestamp.toLocaleDateString()
+                        fecha_turno: nowTimestamp.toISOString()
                     }
                 })
 

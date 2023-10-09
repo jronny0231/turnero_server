@@ -6,16 +6,17 @@ import { stringToUUID } from "../utils/filtering"
 import { prismaTodayFilter } from '../utils/time.helpers';
 import { DisplayQueue, attendingState } from '../@types/queue';
 import { addNewFlowList, getNextServiceId, updatePositionOrderList } from './flow.manage';
-import { paramsType, prepareCallingAudio } from '../services/audio.manager';
+import { prepareCallingAudio } from '../services/audio.manager';
+import { prepareCallAudioInfo } from '../utils/string.compose';
 
 
 // ***** OBJETO CON METODOS QUE SETEAN LOS ESTADOS DE LOS TURNOS ***** //
-// ************* TANTO EN ESTADO LOCAL COMO DE LLAMADA *************** //
+// ******* CON ESTADO LOCAL PARA SOPORTAR LLAMADAS SINCRONAS ********* //
 
 ///// LOGICA DE NEGOCIO /////
 /**
  * const QUEUE_STATE
- * Se administra un estado local para las llamadas recurrentes de nuevos turnos
+ * Se administra un estado local para las llamadas recurrentes de turnos activos
  * El estado local tendra un listado de todos los turnos filtrando:
  * - Solo turnos del dia presente
  * - Solo turnos activos (sin finalizar o cancelados)
@@ -24,12 +25,35 @@ import { paramsType, prepareCallingAudio } from '../services/audio.manager';
  * - Un id secuencial para busqueda
  * - El id de la pantalla que presentara el turno
  * 
- * Cuando se actualice uno de los registros por actividad de las pantallas o agentes,
- * se ejecutara una funcion asincrona para actualizar o registrar los datos en la base de datos.
+ * El estado local solo se usara para obtener datos de llamada
+ * y se actualizara desde la base de datos dada las siguientes condiciones:
+ * - Registro o actualizacion de turnos
+ * - Registro o actualizacion de estados de turno
+ * - Habilitacion estado agente
  * 
- * const PERSISTENT_DATA
- * Se tendra en una constante local los datos persistentes de las sucursales, sus pantallas y agentes
- * la cual se mantendra actualizandose segun cambios por controladores.
+ * Cuando exista una llamada se buscara o registrara el estado turno en la bd
+ * desde el metodo de actualizacion de estado de la pantalla.
+ * 
+ * El estado guardara los campos necesarios para la llamada por pantalla segun tipo DisplayQueue
+ */
+
+/**
+ * - Pantalla:
+ * -- Estado Turno (first unCalled)
+ * ----> GET (loop or socket)   <(cond: 1st match: pantalla<->sucursal & free agente)   Estado:(getCallQueueState)
+ * ----> SET (async or socket)   ()>  Estado:(setCallQueueState)   ()>   DB:(Atencion_Turnos_servicios)
+ *
+ * - Agente:
+ * -- Disponilibidad (available state) 
+ * ----> GET (async or socket)  <()   DB:(Agentes)
+ * ----> SET (async or socket)   ()>  Estado:(setWaitingState)     (cond: 1st turno match: servicio & estado)>     Estado:(setAttendingState)     ()>   DB:(Agentes)
+ * -- Atiende turno (update called asigned)
+ * ----> GET (async or socket)  <(cond: 1st match: agente, servicio & estado)   DB:(Atencion_Turnos_servicios)
+ * ----> SET (async or socket)   ()>  Estado:(setAttendingState)   ()>   DB:(Atencion_Turnos_servicios)
+ * 
+ * - Registro:
+ * -- Creacion de turnos (new queue)
+ * ----> SET (async)             ()>  DB:(Turnos)   (cond: some agent in next service available?)>   Estado:(setCallQueueState)
  */
 
 /**
@@ -108,112 +132,104 @@ export const initData = () => {
  * Metodo con ejecucion asincrona para actualizar
  * o setear los datos en la constante PERSISTENT_DATA
  */
-export const refreshPersistentData = () => {
-    new Promise(  async (resolve, reject) => {
-        try {
-            const data = await prisma.sucursales.findMany({
-                include: {
-                    departamentos_sucursales: {
-                        select: {
-                            agentes: {
-                                include: {
-                                    tipo_agente: {
-                                        select: {
-                                            grupo_servicio_id: true
-                                        }
-                                    }
-                                }
-                            },
-                            servicios_departamentos_sucursales: {
-                                select: { servicio: true,
-                                    departamento_sucursal: {
-                                        select: { departamento: true }
+export const refreshPersistentData = async () => {
+
+    try {
+        const data = await prisma.sucursales.findMany({
+            include: {
+                departamentos_sucursales: {
+                    include: {
+                        agentes: {
+                            include: {
+                                tipo_agente: {
+                                    select: {
+                                        grupo_servicio_id: true
                                     }
                                 }
                             }
+                        },
+                        servicios_departamentos_sucursales: {
+                            include: {
+                                servicio: true,
+                                departamento_sucursal: {
+                                    include: { departamento: true }
+                                }
+                            }
                         }
-                    },
-                    pantallas: true
+                    }
                 },
-                where: {
-                    estatus: true,
-                    departamentos_sucursales: {
-                        some: {
-                            agentes: { some: { estatus: true } },
-                            servicios_departamentos_sucursales: {
-                                some: {
-                                    disponible: true,
-                                    servicio: { estatus: true }
-                                }
+                pantallas: true
+            },
+            where: {
+                estatus: true,
+                departamentos_sucursales: {
+                    some: {
+                        agentes: { some: { estatus: true } },
+                        servicios_departamentos_sucursales: {
+                            some: {
+                                disponible: true,
+                                servicio: { estatus: true }
                             }
                         }
-                    },
-                    pantallas: { some: { estatus: true } }
-                }
-            })
-            .finally(async () => {
-                await prisma.$disconnect()
-            })
+                    }
+                },
+                pantallas: { some: { estatus: true } }
+            }
+        })
+        .finally(async () => {
+            await prisma.$disconnect()
+        })
 
-            if (data === null) throw new Error("data got from database is empty.")
-            console.log({data})
-            PERSISTENT_DATA.length = 0
+        if (data === null) throw new Error("data got from database is empty.")
 
-            data.map(sucursal => {
+        PERSISTENT_DATA.length = 0
 
-                const conjunto_agentes = sucursal.departamentos_sucursales
-                        .map(depsuc => {
-                            return {
-                                ...depsuc.agentes.map(agente => {
-                                    return {
-                                        ...agente,
-                                        grupo_servicio_id: agente.tipo_agente.grupo_servicio_id
-                                    }
-                                })
-                            }
-                        })[0]
-                        .filter(entry => entry !== null);
-                        
-                const conjunto_servicios = sucursal.departamentos_sucursales
-                        .map(depsuc => depsuc.servicios_departamentos_sucursales
-                            .filter(entry => entry !== null)
-                            .map(serdepsuc => serdepsuc.servicio))
-                        .filter(entry => entry !== null)[0]
+        data.map(sucursal => {
 
-                const conjunto_departamentos = sucursal.departamentos_sucursales
-                        .map(depsuc => depsuc.servicios_departamentos_sucursales
-                            .filter(entry => entry !== null)
-                            .map(serdepsuc => serdepsuc.departamento_sucursal.departamento))
-                        .filter(entry => entry !== null)[0]
-                
-                const entry: GlobalOffices = {
-                    ...sucursal,
-                    conjunto_servicios,
-                    conjunto_departamentos,
-                    conjunto_agentes,
-                    conjunto_pantallas: sucursal.pantallas
-                }
-                PERSISTENT_DATA.push(entry)
-            })
-            resolve(PERSISTENT_DATA)
-            return true
+            const conjunto_agentes = sucursal.departamentos_sucursales
+                    .flatMap(depsuc => depsuc.agentes
+                        .flatMap(agente => ({
+                            ...agente,
+                            grupo_servicio_id: agente.tipo_agente.grupo_servicio_id
+                        }))
+                    )
+                    
+            const conjunto_servicios = sucursal.departamentos_sucursales
+                    .flatMap(depsuc => depsuc.servicios_departamentos_sucursales
+                            .flatMap(serdepsuc => serdepsuc.servicio)
+                    )
+         
+            const conjunto_departamentos = sucursal.departamentos_sucursales
+                    .flatMap(depsuc => depsuc.servicios_departamentos_sucursales
+                        .flatMap(serdepsuc => serdepsuc.departamento_sucursal.departamento)
+                    )
+            
+            const entry: GlobalOffices = {
+                ...sucursal,
+                conjunto_servicios,
+                conjunto_departamentos,
+                conjunto_agentes,
+                conjunto_pantallas: sucursal.pantallas
+            }
+            PERSISTENT_DATA.push(entry)
+        })
 
-        } catch (error) {
+        return true
 
-            console.error("Error trying setting up PERSISTEN_DATA on state", {error})
-            reject(error)
+    } catch (error) {
+        console.error("Error trying setting up PERSISTEN_DATA on state", {error})
+        return false
 
-            return false
-        } finally {
-            console.log("Async refresh PERSISTENT_DATA", {length: PERSISTENT_DATA.length})
-        }
-    })
+    } finally {
+        console.log("Async refresh PERSISTENT_DATA", {length: PERSISTENT_DATA.length})
+    }
 }
 
 /**
  * Metodo con ejecucion asincrona para subir el nuevo estado
  * del la constante PERSISTENT_DATA a la base de datos y refrescar el local
  */
+/*
 const updatePersistentData = (newState: typeof PERSISTENT_DATA) => {
     new Promise ( async (resolve, reject) => {
         try {
@@ -277,102 +293,100 @@ const updatePersistentData = (newState: typeof PERSISTENT_DATA) => {
         }
     })
 }
+*/
 
 /**
  * Metodo con ejecucion asincrona para actualizar
  * o setear el estado en la constante QUEUE_STATE
  */
-export const refreshQueueState = () => {
-    new Promise(  async (resolve, reject) => {
-        try {
-            const turnosActivos = await prisma.turnos.findMany({
-                where: {
-                    fecha_turno: prismaTodayFilter()
-                },
-                include: {
-                    estado_turno: true,
-                    atenciones_turnos_servicios: {
-                        include: {
-                            servicio: true,
-                            agente: {
-                                include: {
-                                    departamento_sucursal: {
-                                        select: {
-                                            sucursal: {
-                                                select: {
-                                                    id: true,
-                                                    pantallas: {
-                                                        select: {
-                                                            key: true
-                                                        }
+export const refreshQueueState = async () => {
+    try {
+        const turnosActivos = await prisma.turnos.findMany({
+            where: {
+                fecha_turno: prismaTodayFilter()
+            },
+            include: {
+                estado_turno: true,
+                atenciones_turnos_servicios: {
+                    include: {
+                        servicio: true,
+                        agente: {
+                            include: {
+                                departamento_sucursal: {
+                                    select: {
+                                        sucursal: {
+                                            select: {
+                                                id: true,
+                                                pantallas: {
+                                                    select: {
+                                                        key: true
                                                     }
                                                 }
-                                            },
-                                            departamento: true
-                                        }
+                                            }
+                                        },
+                                        departamento: true
                                     }
                                 }
                             }
                         }
                     }
                 }
-            })
-            .finally(async () => {
-                await prisma.$disconnect()
-            })
+            }
+        })
+        .finally(async () => {
+            await prisma.$disconnect()
+        })
 
-            if (turnosActivos === null) throw new Error("data got from database is empty.")
+        if (turnosActivos === null) throw new Error("data got from database is empty.")
 
-            QUEUE_STATE.length = 0
+        QUEUE_STATE.length = 0
 
-            turnosActivos.map( turno => {
-                const displaysUUID = turno.atenciones_turnos_servicios
-                        .map(atenciones => atenciones.agente.departamento_sucursal.sucursal.pantallas)[0]
-                        .map(pantalla => pantalla.key)
-                        .map(key => stringToUUID(key))
-                        .filter(entry => entry !== null) as Array< UUID >;
+        turnosActivos.map( turno => {
+            const displaysUUID = turno.atenciones_turnos_servicios
+                    .map(atenciones => atenciones.agente.departamento_sucursal.sucursal.pantallas)[0]
+                    .map(pantalla => pantalla.key)
+                    .map(key => stringToUUID(key))
+                    .filter(entry => entry !== null) as Array< UUID >;
 
-                const atencion: Array <TurnosActivos> = turno.atenciones_turnos_servicios
-                        .map((atencion, index) => {
-                            return {
-                                ...atencion,
-                                state_id: index,
-                                servicio: atencion.servicio,
-                                departamento: atencion.agente.departamento_sucursal.departamento,
-                                agente: atencion.agente,
-                                estado_turno_name: turno.estado_turno?.descripcion
-                            }
-                        })
-                        .filter(entry => entry !== null)
-                
-                const entry: QueueStateType = {
-                    ...turno,
-                    estado_turno_name: turno.estado_turno?.descripcion,
-                    atencion,
-                    displaysUUID
-                }
+            const atencion: Array <TurnosActivos> = turno.atenciones_turnos_servicios
+                    .map((atencion, index) => {
+                        return {
+                            ...atencion,
+                            state_id: index,
+                            servicio: atencion.servicio,
+                            departamento: atencion.agente.departamento_sucursal.departamento,
+                            agente: atencion.agente,
+                            estado_turno_name: turno.estado_turno?.descripcion
+                        }
+                    })
+                    .filter(entry => entry !== null)
+            
+            const entry: QueueStateType = {
+                ...turno,
+                estado_turno_name: turno.estado_turno?.descripcion,
+                atencion,
+                displaysUUID
+            }
 
-                QUEUE_STATE.push(entry)
-            })
-            resolve(PERSISTENT_DATA)
-            return true
+            QUEUE_STATE.push(entry)
+        })
 
-        } catch (error) {
+        return true
 
-            console.error("Error trying setting up PERSISTEN_DATA on state", {error})
-            reject(error)
+    } catch (error) {
+        console.error("Error trying setting up PERSISTEN_DATA on state", {error})
 
-            return false
-        } finally {
-            console.log("Async refresh QUEUE_STATE", {length: QUEUE_STATE.length})
-        }
-    })
+        return false
+    } finally {
+        console.log("Async refresh QUEUE_STATE", {length: QUEUE_STATE.length})
+    }
 }
 
 /**
  * Metodo con ejecucion asincrona para subir el nuevo estado
  * del la constante QUEUE_STATE a la base de datos y refrescar el local
  */
+/*
 const updateQueueState = (newState: typeof QUEUE_STATE) => {
     new Promise ( async (resolve, reject) => {
         try {
@@ -413,6 +427,7 @@ const updateQueueState = (newState: typeof QUEUE_STATE) => {
         }
     })
 }
+*/
 
 /**
  * Devuelve el servicio que coincida con la ID
@@ -420,9 +435,10 @@ const updateQueueState = (newState: typeof QUEUE_STATE) => {
  * @returns Servicio
  */
 export const getServiceById = (id: number) => {
-    return PERSISTENT_DATA.map(sucursal => 
-        sucursal.conjunto_servicios?.filter(servicio => servicio.id === id)[0]
-    )[0] ?? null
+    return PERSISTENT_DATA.map(sucursal => {
+        console.table(sucursal.conjunto_servicios)
+        return sucursal.conjunto_servicios.filter(servicio => servicio.id === id)[0]
+    })[0] ?? null
 }
 
 /**
@@ -432,7 +448,8 @@ export const getServiceById = (id: number) => {
  */
 export const getQueuesListByService = (
     {sucursal_id, servicio_destino_id, servicio_actual_id}:
-    {sucursal_id: number, servicio_destino_id?: number, servicio_actual_id?: number}) => {
+    {sucursal_id: number, servicio_destino_id?: number, servicio_actual_id?: number}
+    ) => {
     return QUEUE_STATE.filter(turno => 
         turno.sucursal_id === sucursal_id
         && (servicio_actual_id) ? turno.servicio_actual_id === servicio_actual_id : true
@@ -480,19 +497,42 @@ type agentStateType = {
  * @param param0 
  * @returns 
  */
-export const setWaitingState = ({usuario_id, esperando = true, servicios_destino_id}: agentStateType): boolean => {
-    const found = PERSISTENT_DATA
-        .map(sucursal => {
-            if (sucursal.conjunto_agentes !== undefined){
-                return sucursal.conjunto_agentes.filter(agente => (
-                    agente.usuario_id === usuario_id // Valida que el agente tenga relacion con el usuario logeado
-                ))[0]
-            }
-            return null
-        }).filter(entry => entry !== null)[0]
-
-    if (found === null) return false
+export const setWaitingState = async ({usuario_id, esperando = true, servicios_destino_id}: agentStateType) => {
     
+    try {
+        let isResolve = false
+
+        const updatableState = structuredClone(PERSISTENT_DATA)
+        PERSISTENT_DATA.length = 0
+
+        updatableState
+            .forEach(sucursal => {
+                if (sucursal.conjunto_agentes !== undefined){    
+                    sucursal.conjunto_agentes.forEach(agente => {
+                        // Valida que el agente tenga relacion con el usuario logeado
+                        if (agente.usuario_id === usuario_id) {
+                            agente.esperando = esperando
+                            agente.esperando_servicios_destino_id = servicios_destino_id
+                            isResolve = true
+                        }
+                        return agente
+                    })                
+                }
+                PERSISTENT_DATA.push(sucursal)
+            })
+        
+        await prisma.agentes.update({
+            where: { usuario_id },
+            data: { esperando }
+        })
+
+        return isResolve
+    } catch (error) {
+        console.error(`Error in global state when trying to update agent state to user id ${usuario_id}`, error)
+        return false
+    }
+    
+    /*
     const newState = PERSISTENT_DATA.map(sucursal => {
         if (sucursal.conjunto_agentes !== undefined) {
             const newAgentes = sucursal.conjunto_agentes.map(agente => {
@@ -511,8 +551,7 @@ export const setWaitingState = ({usuario_id, esperando = true, servicios_destino
     })
 
     updatePersistentData(newState)
-    
-    return true
+    */
 }
 
 
@@ -617,7 +656,7 @@ export const getCallQueueState = ({displayUUID}: {displayUUID: UUID}): DisplayQu
         tempStatus.set(displayUUID, 'LOADING')
         
         prepareCallingAudio({
-            displayUUID,
+            uuid: displayUUID,
             params: prepareCallAudioInfo(
                 firstFilter.secuencia_ticket,
                 firstUncalled.departamento.siglas
@@ -651,6 +690,7 @@ export const setCallQueueState = ({state_id, displayUUID, estatus}: {state_id: n
 
     attendReg.estatus_llamada = estatus
 
+    /*
     const newState = QUEUE_STATE.map(turno => {
         if (turno.id === firstFilter.id && turno.atencion !== null) {
             const atencion = turno.atencion.map(atencion => {
@@ -664,8 +704,8 @@ export const setCallQueueState = ({state_id, displayUUID, estatus}: {state_id: n
         }
         return turno
     })
-
-    updateQueueState(newState)
+    */
+    //updateQueueState(newState)
 
     /*
     new Promise( async (resolve, rejected) => {
@@ -774,7 +814,7 @@ export const getAttendingQueueByUserId = ({usuario_id}: {usuario_id: number}) =>
 
 /**
  * Metodo ejecutado por el agente
- * Agrega el tiempo de hora_inicio cuando cambia el estado a ATENDIENDO,
+ * Crea si no exitste el registro de atencion, agrega el tiempo de hora_inicio cuando cambia el estado a ATENDIENDO,
  * si se pone EN_ESPERA, DESCANSANDO se setea la HORA_FIN y al reanudar se hace lo siguiente:
  * - Se toma la diferencia entre la hora actual con la HORA_FIN en segundos
  * y se guarda en el campo ESPERA_SEGUNDOS.
@@ -811,7 +851,7 @@ export const setAttendingState = async ({agente_id, servicio_id, turno_id, estad
     const waitTimeSeconds =  preWaitSeconds + Math.floor((nowTime.getTime() - endTime.getTime()) / 1000)
     const {descripcion: estado} = estado_turno
     
-    let attendWillDelete: boolean = false
+    //let attendWillDelete: boolean = false
     
     /**
      * El agente devuelve el turno a la cola para el mismo servicio
@@ -819,7 +859,7 @@ export const setAttendingState = async ({agente_id, servicio_id, turno_id, estad
      * - Situa el orden del turno X posiciones atras
      */
     if (['NUEVA_SESION'].includes(estado)) {
-        attendWillDelete = true
+        //attendWillDelete = true
         updatePositionOrderList({turno_id, nueva_posicion: 3}).then(result => {
             console.log(`Rows updated when turno_id: ${turno_id} was reset to NUEVA_SESION`, result)
         })
@@ -907,7 +947,7 @@ export const setAttendingState = async ({agente_id, servicio_id, turno_id, estad
 
     // Actualiza el estado y el turno con los parametros previamente
     // modificados, en caso de ser eliminado no se incluye
-    const newState = QUEUE_STATE.map(turno => {
+    /*const newState = QUEUE_STATE.map(turno => {
         if (turno.id === firstFilter.id && turno.atencion !== null) {
             const atencion = turno.atencion.map(atencion => {
                 if (atencion.agente_id === agente_id) {
@@ -924,8 +964,8 @@ export const setAttendingState = async ({agente_id, servicio_id, turno_id, estad
         }
         return turno
     })
-
-    updateQueueState(newState)
+    */
+    //updateQueueState(newState)
 
     return true
 }
@@ -936,34 +976,26 @@ export const setAttendingState = async ({agente_id, servicio_id, turno_id, estad
  * Asigna las pantallas segun la sucursal y los agentes asignados al servicio segun su grupo.
  * @param param0 
  */
-export const addNewQueueState = ({turno}: {turno: Turnos}) => {
+export const addNewQueueState = async ({turno}: {turno: Turnos}): Promise<boolean> => {
     
-    new Promise(async (resolve, reject) => {
-        try {
-            const turnoEstado = QUEUE_STATE.filter(entry => entry.id === turno.id)[0] ?? null
-            if (turnoEstado === null) {
-                const nuevoTurno = await prisma.turnos.findFirst({ where: { id: turno.id }  })
-                if (nuevoTurno === null) throw new Error("Not Turnos was found")
-                
-                refreshQueueState()
-                return addNewQueueState({turno})
-            }
-
-            addNewFlowList({turno})
-
-            resolve(turnoEstado)
-            
-            console.log({turnoEstado})
-            return true
-
-        } catch (error) {
-
-            console.log("Error while add new queue to state", {error})
-            reject(error)
-            return false
+    try {
+        const turnoEstado = QUEUE_STATE.filter(entry => entry.id === turno.id)[0] ?? null
+        if (turnoEstado === null) {
+           
+            refreshQueueState()
+            return addNewQueueState({turno})
         }
 
-    })
+        addNewFlowList({turno})
+        
+        console.log({turnoEstado})
+        return true
+
+    } catch (error) {
+
+        console.log("Error while add new queue to state", {error})
+        return false
+    }
 }
 
 /**
@@ -1016,68 +1048,6 @@ const findOrCreateAttendingReg = ({turno, agente_id, servicio_id}: {turno: Turno
 
     })().then( () => refreshQueueState())
     
-}
-
-
-const prepareCallAudioInfo = (secuencia_ticket: string, siglas_departamento: string, prefijo_servicio?: string | undefined) => {
-    
-    const [letters, numbers] = secuencia_ticket.match(/([a-zA-Z]+)|(\d+)/g) ?? []
-
-    const initDing: paramsType = {
-        pos: 0,
-        type: 'utils',
-        name: 'ding'
-    }
-    
-    const lettersMap: paramsType[] = letters?.toUpperCase().split('').map((letter, i) => ({
-        pos: i + 1,
-        type: 'letters',
-        name: letter
-    })) ?? [];
-
-    const numbersMap: paramsType[] = []
-
-    const deptMap: paramsType = {
-        pos: 6,
-        type: 'department',
-        name: siglas_departamento.toUpperCase()
-    }
-
-    const servMap: paramsType | null = prefijo_servicio ? {
-        pos: 8,
-        type: 'services',
-        name: prefijo_servicio.toUpperCase()
-    }: null
-
-    const value: number = Number(numbers)
-    const decimalsAfterTen = [2,3,4,5,6,7,8,9].map(num => num * 10)
-    
-
-    if (value <= 9) {
-        numbersMap.push({ pos: 4, type: 'numbers', name: '0' })
-        numbersMap.push({ pos: 5, type: 'numbers', name: value.toString() })
-    }
-    if (value >= 10 && value <= 20 || decimalsAfterTen.includes(value)) {
-        numbersMap.push({ pos: 4, type: 'numbers', name: value.toString() })
-    }
-    
-    const [decimal, unit] = value.toString().split("")
-
-    if (value >=21 && value <= 29) {
-        numbersMap.push({ pos: 4, type: 'numbers', name: decimal + "X" })
-        numbersMap.push({ pos: 5, type: 'numbers', name: unit })
-    }
-
-    if (value > 30 && decimalsAfterTen.includes(value) === false) {
-        numbersMap.push({ pos: 4, type: 'numbers', name: decimal + "0" })
-        numbersMap.push({ pos: 5, type: 'numbers', name: "X" + unit })
-    }
-
-    const joinObjects = [...lettersMap, ...numbersMap, deptMap, initDing]
-
-    if (servMap) { joinObjects.push({pos: 7, type: 'utils', name: 'PARA'}, servMap) }
-
-    return joinObjects
 }
 
 const getDisplayCallTittle = ({turno}: {turno: QueueStateType}): string => {

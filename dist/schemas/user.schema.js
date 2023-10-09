@@ -7,7 +7,7 @@ exports.userSchema = zod_1.z.object({
     nombres: zod_1.z.string().min(1).max(50),
     correo: zod_1.z.string().email().max(60),
     username: zod_1.z.string().min(3).max(15)
-        .regex(/^[A-Z][a-zA-Z0-9_]+$/, "Must start with uppercase and only include letters, numbers and one underscore"),
+        .regex(/^[a-zA-Z0-9_]+$/, "Must contains only letters, numbers and underscores"),
     password: zod_1.z.string().min(8).max(80)
         .regex(/^(?=.*[a-z]).+$/, "Must contain at least one LOWERCASE letter")
         .regex(/^(?=.*[A-Z]).+$/, "Must contain at least one UPPERCASE letter")
@@ -21,6 +21,8 @@ exports.createUser = zod_1.z.object({
     body: exports.userSchema.partial({
         agente: true,
         agente_id: true,
+    }).omit({
+        password: true
     })
 });
 exports.updateUser = zod_1.z.object({

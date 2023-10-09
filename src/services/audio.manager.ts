@@ -21,7 +21,7 @@ type audioFilesType = {
 }
 
 type exportedFilesType = {
-    displayUUID: UUID
+    uuid: UUID
     path: string
 }
 
@@ -33,7 +33,7 @@ export type paramsType = {
 
 type callingAudioType = {
     params: Array<paramsType>
-    displayUUID: UUID
+    uuid: UUID
 }
 
 
@@ -52,8 +52,13 @@ const exportedAudioFiles: Array<exportedFilesType> = []
 // File extension for all file receive, processed and returned
 const fileExtension = "wav";
 
+// Absolute path for volume directory
+const volume = process.env.VOLUME_PATH
+
+if (volume === undefined) throw new Error("VOLUME_PATH environment constant not set");
+
 // Main absolute path direction for audio resources
-const mainPath = path.join(path.resolve("./"), 'records')
+const mainPath = path.join(path.resolve(volume), 'records')
 
 // Absolute directory for audio processed and exported
 const outDir = path.join(mainPath, 'exports')
@@ -63,11 +68,11 @@ let isWorking = false;
 
 /**
  * Method to create a calling audio file from concat some audio files
- * in order and named with a unique displayUUID than display can call 
- * @param {displayUUID, Array of {position, folderType, name}} 
+ * in order and named with a unique uuid than display can call 
+ * @param {uuid, Array of {position, folderType, name}} 
  * @returns Promise string
  */
-export const prepareCallingAudio = async ({displayUUID, params}: callingAudioType) => {
+export const prepareCallingAudio = async ({uuid, params}: callingAudioType) => {
     isWorking = true
 
     try {
@@ -92,7 +97,7 @@ export const prepareCallingAudio = async ({displayUUID, params}: callingAudioTyp
         const filePaths = resultsPath.map(file => file.path)
 
         const paramsName = resultsPath.map(file => file.name).join('')
-        const fileName = `${displayUUID}_${paramsName}` // UUID_[params.name1params.name2...]
+        const fileName = `${uuid}_${paramsName}` // UUID_[params.name1params.name2...]
 
         if (fs.existsSync(path.join(outDir, `${fileName}.${fileExtension}`))) {
             isWorking = false
@@ -102,7 +107,7 @@ export const prepareCallingAudio = async ({displayUUID, params}: callingAudioTyp
             }
         }
 
-        const renameResult = renameMatchedExportedFile(displayUUID, fileName) 
+        const renameResult = renameMatchedExportedFile(uuid, fileName) 
         if (renameResult === null) {
             throw new Error("Could not rename file.");
             
@@ -119,22 +124,22 @@ export const prepareCallingAudio = async ({displayUUID, params}: callingAudioTyp
 
     } catch (error) {
         isWorking = false
-        console.error("Error trying concatenate audio files", {error})
-        return null
+        throw new Error(`Error trying concatenate audio files ${error}`);
+        
     }
 }
 
 /**
  * Method to get a string file path from audio that will be call to display
  * using the display unique id (UUID). If not exist return null.
- * @param displayUUID 
+ * @param uuid 
  * @returns string path or null
  */
-export const getExpotedAudioPathFromUUID = (displayUUID: UUID) => {
+export const getExpotedAudioPathFromUUID = (uuid: UUID) => {
 
     if (isWorking) return null
 
-    return getExportedAudioPath(displayUUID)
+    return getExportedAudioPath(uuid)
 }
 
 /**
@@ -154,7 +159,7 @@ export const loadExportedAudioFilesPath = async () => {
             if (uuid === null) return null
 
             return {
-                displayUUID: uuid,
+                uuid: uuid,
                 path: file.path
             }
         }).filter(file => file) as exportedFilesType[]
@@ -266,12 +271,12 @@ const getFilesFromDirectory = async (dirPath: string) => {
  * - true if complete
  * - false if couldnt find file
  * - null if occur an error
- * @param displayUUID 
+ * @param uuid 
  * @param newName 
  * @returns boolean | null
  */
-const renameMatchedExportedFile = (displayUUID: UUID, newName: string) => {
-    const oldFile = getExportedAudioPath(displayUUID)
+const renameMatchedExportedFile = (uuid: UUID, newName: string) => {
+    const oldFile = getExportedAudioPath(uuid)
 
     if (oldFile === null) { return false }
 
@@ -284,7 +289,7 @@ const renameMatchedExportedFile = (displayUUID: UUID, newName: string) => {
         return true
 
     } catch (error) {
-        console.error(`Could not rename file '${oldFile}' to '${newName}' with displayUUID '${displayUUID}'`, {error})
+        console.error(`Could not rename file '${oldFile}' to '${newName}' with uuid '${uuid}'`, {error})
         return null
     }
 }
@@ -292,11 +297,11 @@ const renameMatchedExportedFile = (displayUUID: UUID, newName: string) => {
 /**
  * Returns a path from exported audio file that match with display UUID,
  * exist in local array files path and exports folder
- * @param displayUUID 
+ * @param uuid 
  * @returns string path or null
  */
-const getExportedAudioPath = (displayUUID: UUID) => {
-    const filter = exportedAudioFiles.filter(file => (file.displayUUID === displayUUID) )
+const getExportedAudioPath = (uuid: UUID) => {
+    const filter = exportedAudioFiles.filter(file => (file.uuid === uuid) )
 
     if (filter.length === 0) {
         loadExportedAudioFilesPath()
