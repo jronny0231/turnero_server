@@ -1,0 +1,127 @@
+{
+    "Permisos": [
+        {
+            "nombre": "users",
+            "descripcion": "Gestion de Usuarios"
+        },
+        
+        {
+            "nombre": "auth_profile",
+            "descripcion": "Gestion de Usuario Logeado"
+        },
+        
+        {
+            "nombre": "roles",
+            "descripcion": "Gestion de Roles y Permisos"
+        },
+        
+        {
+            "nombre": "queues",
+            "descripcion": "Gestion de Turnos"
+        },{
+            "nombre": "queues_servs_depends",
+            "descripcion": "Gestion de Servicios Dependientes por Turno"
+        },
+        
+        {
+            "nombre": "services",
+            "descripcion": "Gestion de Servicios"
+        },{
+            "nombre": "services_groups",
+            "descripcion": "Gestion de Grupos de Servicios",
+            "parent_id": 0
+        },
+        
+        {
+            "nombre": "agents",
+            "descripcion": "Gestion de Agentes"
+        },{
+            "nombre": "agents_types",
+            "descripcion": "Gestion de Tipos de Agentes"
+        },
+        
+        {
+            "nombre": "clients",
+            "descripcion": "Gestion de Clientes"
+        },{
+            "nombre": "clients_details",
+            "descripcion": "Gestion de Detalles de Clientes"
+        },{
+            "nombre": "clients_refer",
+            "descripcion": "Gestion de Referimientos de Clientes"
+        },{
+            "nombre": "clients_refer_types",
+            "descripcion": "Gestion de Tipos de Refermientos de Clientes"
+        },
+        
+        {
+            "nombre": "ars",
+            "descripcion": "Gestion de ARS"
+        },
+        
+        {
+            "nombre": "schedules",
+            "descripcion": "Gestion de Visitas Agendadas"
+        },{
+            "nombre": "schedules_types",
+            "descripcion": "Gestion de Tipos de Visitas Agendadas"
+        },
+        
+        {
+            "nombre": "protocols",
+            "descripcion": "Gestion de Protocolos"
+        },{
+            "nombre": "protocols_servs_ars",
+            "descripcion": "Gestion de Servicios Por ARS en Protocolos"
+        },{
+            "nombre": "protocols_types",
+            "descripcion": "Gestion de Tipos de Protocolos"
+        },
+        
+        {
+            "nombre": "offices",
+            "descripcion": "Gestion de Sucursales"
+        },{
+            "nombre": "offices_departments",
+            "descripcion": "Gestion de Departamentos por Sucursales"
+        },{
+            "nombre": "offs_depts_services",
+            "descripcion": "Gestion de Servicios por Departamentos"
+        },
+
+        {
+            "nombre": "department",
+            "descripcion": "Gestion de Departamentos"
+        },
+
+        {
+            "nombre": "media",
+            "descripcion": "Gestion de Contenido Multimedia"
+        },{
+            "nombre": "media_collections",
+            "descripcion": "Gestion de Colecciones Multimedia"
+        },{
+            "nombre": "media_types",
+            "descripcion": "Gestion de Tipos de Multimedia"
+        },
+
+        {
+            "nombre": "config",
+            "descripcion": "Gestion de Configuraciones de Sistema"
+        }
+    ],
+    "Configuraciones": [
+        {
+            "clave": "business_name",
+            "valor": "Instituto Internacional de la Vision, INVIS",
+            "detalle": "Nombre del negocio principal",
+            "valor_default": "Sistema de Turnos FlowFlex"
+        },{
+            "clave": "business_phone",
+            "valor": "(809) 537-0200",
+            "detalle": "Telefono del negocio principal",
+            "valor_default": "(809) 123-4567",
+            "parent_id": 1
+        }
+    ]
+}

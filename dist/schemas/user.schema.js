@@ -13,7 +13,7 @@ exports.userSchema = zod_1.z.object({
         .regex(/^(?=.*[A-Z]).+$/, "Must contain at least one UPPERCASE letter")
         .regex(/^(?=.*[-+_!@#$%^&*., ?]).+$/, "Must contain at least one SPECIAL character")
         .regex(/^(?=.*\d).+$/, "Must contain at least one NUMBER"),
-    rol_id: zod_1.z.number().min(1),
+    rol_id: zod_1.z.number().gte(1),
     agente_id: zod_1.z.coerce.number().gte(1),
     agente: agent_schema_1.createAgent
 });

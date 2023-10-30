@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.urlToken = exports.authToken = void 0;
+exports.socketToken = exports.urlToken = exports.authToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const jwt_helper_1 = require("../services/jwt.helper");
 const TOKEN_SECRET = (0, jwt_helper_1.getSecret)();
@@ -48,3 +48,21 @@ const urlToken = (req, res, next) => {
     });
 };
 exports.urlToken = urlToken;
+const socketToken = (socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (typeof token !== 'string') {
+        const error = new Error('bearer token invalid');
+        return next(error);
+    }
+    // Verify token (iss, lifetime, structure) from jwt
+    return jsonwebtoken_1.default.verify(token, TOKEN_SECRET, (err, decode) => {
+        // If error return it
+        if (err) {
+            const error = new Error(err.message);
+            return next(error);
+        }
+        socket.handshake.auth.payload = decode.data;
+        return next();
+    });
+};
+exports.socketToken = socketToken;

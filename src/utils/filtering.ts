@@ -1,5 +1,6 @@
 import { UUID } from "crypto";
 import bcrypt from 'bcrypt';
+import logger from "./logger";
 
 export const ObjectFiltering = ((data: object, filters: Array<string>): object => {
   return Object.keys(data)
@@ -45,7 +46,7 @@ export const encryptPassword = async (password?: string | undefined): Promise<st
     })
     .then(hashed => hashed)
     .catch(err => {
-      console.error(err.message)
+      logger.error(err, console.error)
       return hashedPassword;
     })
 }

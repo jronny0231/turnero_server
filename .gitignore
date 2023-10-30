@@ -4,11 +4,11 @@ node_modules
 # Keep environment variables out of version control
 .env
 
-# Keep records files out of version control
-records
-
 # Keep dist files out of version control
 dist
 
 # Keep unused folder out if version control
-unused
+.unused
+
+# Keep volume folder out of version control
+_volume

@@ -1,5 +1,6 @@
 import App from "./servers/express.server";
-import wss from "./servers/ws.server";
+import "./routes/socket.routes";
+
 import authRoutes from "./routes/auth.routes";
 import configRoutes from "./routes/config.routes";
 import queueRoutes from "./routes/queue.routes";
@@ -11,8 +12,6 @@ import scheduleRoutes from "./routes/schedule.routes";
 import audioRoutes from "./routes/records.routes";
 import officeRoutes from "./routes/office.routes";
 import departmentRoutes from "./routes/department.routes";
-
-wss.on("connection", () => {})
 
 const pjson = require("../package.json");
 

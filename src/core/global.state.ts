@@ -8,6 +8,7 @@ import { DisplayQueue, attendingState } from '../@types/queue';
 import { addNewFlowList, getNextServiceId, updatePositionOrderList } from './flow.manage';
 import { prepareCallingAudio } from '../services/audio.manager';
 import { prepareCallAudioInfo } from '../utils/string.compose';
+import logger from '../utils/logger';
 
 
 // ***** OBJETO CON METODOS QUE SETEAN LOS ESTADOS DE LOS TURNOS ***** //
@@ -374,11 +375,11 @@ export const refreshQueueState = async () => {
         return true
 
     } catch (error) {
-        console.error("Error trying setting up PERSISTEN_DATA on state", {error})
-
+        logger.error(`Error trying setting up PERSISTEN_DATA on state: ${error}`, console.error)
         return false
+
     } finally {
-        console.log("Async refresh QUEUE_STATE", {length: QUEUE_STATE.length})
+        logger.debug(`Async refresh QUEUE_STATE, lenght: ${QUEUE_STATE.length}`, console.debug)
     }
 }
 

@@ -18,8 +18,8 @@ const filtering_1 = require("../utils/filtering");
 const audio_manager_1 = require("../services/audio.manager");
 const string_compose_1 = require("../utils/string.compose");
 const getCallingAudiobyDisplay = (req, res) => {
-    const uuid = (0, filtering_1.stringToUUID)(req.params.uuid);
     try {
+        const uuid = (0, filtering_1.stringToUUID)(req.params.uuid);
         if (uuid === null) {
             return res.status(400).json({ success: false, message: "The UUID param in URL is mailformed" });
         }
@@ -38,15 +38,15 @@ const getCallingAudiobyDisplay = (req, res) => {
 };
 exports.getCallingAudiobyDisplay = getCallingAudiobyDisplay;
 const preparingCallingAudio = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const uuid = (0, filtering_1.stringToUUID)(req.params.uuid);
     const body = req.body;
     try {
+        const uuid = (0, filtering_1.stringToUUID)(body.uuid);
         if (uuid === null) {
             return res.status(400).json({ success: false, message: "The UUID param in URL is mailformed" });
         }
         const resp = yield (0, audio_manager_1.prepareCallingAudio)({
             uuid,
-            params: (0, string_compose_1.prepareCallAudioInfo)(body.secuencia_ticket, body.department, body.service)
+            params: (0, string_compose_1.prepareCallAudioInfo)(body.secuencia_ticket, body.departamento, body.servicio)
         });
         console.log(`Audio processed and exported successfully on path ${resp.result}`);
         return res.json({ success: true, message: "Audio processed and exported successfully", data: resp });

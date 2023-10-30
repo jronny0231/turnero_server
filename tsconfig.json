@@ -108,12 +108,12 @@
   },
   "include": [
     "./src",
-    "./public", "unused/aws.s3.provider.ts", "unused/aws.controller.ts", "unused/aws.routes.ts",
+    "./public", ".unused/ws.server.ts",
   ],
   "exclude": [
     "./dist",
     "./node_modules",
     "./prisma",
-    "./unused"
+    "./.unused"
   ]
 }

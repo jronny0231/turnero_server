@@ -19,7 +19,7 @@ export const userSchema = z.object({
                 
                 .regex(/^(?=.*\d).+$/,
                     "Must contain at least one NUMBER"),
-    rol_id: z.number().min(1),
+    rol_id: z.number().gte(1),
     agente_id: z.coerce.number().gte(1),
     agente: createAgent
 })
@@ -28,8 +28,6 @@ export const createUser = z.object({
     body: userSchema.partial({
         agente: true,
         agente_id: true,
-    }).omit({
-        password: true
     })
 })
 

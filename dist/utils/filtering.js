@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.encryptPassword = exports.stringToUUID = exports.ObjectDifferences = exports.ObjectFiltering = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
+const logger_1 = __importDefault(require("./logger"));
 exports.ObjectFiltering = ((data, filters) => {
     return Object.keys(data)
         .filter(key => filters.includes(key))
@@ -48,7 +49,7 @@ const encryptPassword = (password) => __awaiter(void 0, void 0, void 0, function
     }))
         .then(hashed => hashed)
         .catch(err => {
-        console.error(err.message);
+        logger_1.default.error(err, console.error);
         return hashedPassword;
     });
 });

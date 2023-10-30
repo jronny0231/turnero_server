@@ -8,6 +8,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.addNewQueueState = exports.setAttendingState = exports.getAttendingQueueByUserId = exports.getActiveQueueList = exports.setCallQueueState = exports.getCallQueueState = exports.setWaitingState = exports.GetAllAvailableServicesInSucursal = exports.getSucursalByUserId = exports.getQueuesListByService = exports.getServiceById = exports.refreshQueueState = exports.refreshPersistentData = exports.initData = void 0;
 const client_1 = require("@prisma/client");
@@ -16,6 +19,7 @@ const time_helpers_1 = require("../utils/time.helpers");
 const flow_manage_1 = require("./flow.manage");
 const audio_manager_1 = require("../services/audio.manager");
 const string_compose_1 = require("../utils/string.compose");
+const logger_1 = __importDefault(require("../utils/logger"));
 const QUEUE_STATE = [];
 const PERSISTENT_DATA = [];
 const tempStatus = new Map;
@@ -243,11 +247,11 @@ const refreshQueueState = () => __awaiter(void 0, void 0, void 0, function* () {
         return true;
     }
     catch (error) {
-        console.error("Error trying setting up PERSISTEN_DATA on state", { error });
+        logger_1.default.error(`Error trying setting up PERSISTEN_DATA on state: ${error}`, console.error);
         return false;
     }
     finally {
-        console.log("Async refresh QUEUE_STATE", { length: QUEUE_STATE.length });
+        logger_1.default.debug(`Async refresh QUEUE_STATE, lenght: ${QUEUE_STATE.length}`, console.debug);
     }
 });
 exports.refreshQueueState = refreshQueueState;

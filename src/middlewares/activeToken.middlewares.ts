@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { getSecret } from '../services/jwt.helper';
 import { payloadType } from '../@types/auth';
+import { SocketType } from '../servers/socket.server';
+import { ExtendedError } from 'socket.io/dist/namespace';
 
 const TOKEN_SECRET: string = getSecret()
 
@@ -55,6 +57,29 @@ export const urlToken = (req: Request, res: Response, next: NextFunction) => {
 
     res.locals.payload = payload;
     res.locals.token = token;
+
+    return next()
+  })
+}
+
+export const socketToken = (socket: SocketType, next: (err?: ExtendedError | undefined) => void) => {
+  const token = socket.handshake.auth.token;
+
+  if (typeof token !== 'string') {
+    const error = new Error('bearer token invalid')
+    return next(error)
+  }
+    
+  // Verify token (iss, lifetime, structure) from jwt
+  return jwt.verify(token, TOKEN_SECRET as string,  (err: any, decode: any ) => {
+    
+    // If error return it
+    if (err){
+      const error= new Error(err.message)
+      return next(error)
+    }
+
+    socket.handshake.auth.payload = decode.data
 
     return next()
   })

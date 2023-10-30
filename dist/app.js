@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_server_1 = __importDefault(require("./servers/express.server"));
-const ws_server_1 = __importDefault(require("./servers/ws.server"));
+require("./routes/socket.routes");
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const config_routes_1 = __importDefault(require("./routes/config.routes"));
 const queue_routes_1 = __importDefault(require("./routes/queue.routes"));
@@ -16,7 +16,6 @@ const schedule_routes_1 = __importDefault(require("./routes/schedule.routes"));
 const records_routes_1 = __importDefault(require("./routes/records.routes"));
 const office_routes_1 = __importDefault(require("./routes/office.routes"));
 const department_routes_1 = __importDefault(require("./routes/department.routes"));
-ws_server_1.default.on("connection", () => { });
 const pjson = require("../package.json");
 const version = pjson.version || process.env.VERSION;
 express_server_1.default.use(`/api/v${version}/auth`, auth_routes_1.default);

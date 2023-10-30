@@ -20,3 +20,10 @@ export type DisplayFilterParams = {
         values: Array<string>
     } 
 }
+
+export enum SocketEvents {
+    CALL_QUEUE = 'call_queue',
+    UPDATE_CALL = 'update_call',
+    ALTER_QUEUE = 'alter_queue',
+    OPEN_AGENT = 'open_agent',
+}

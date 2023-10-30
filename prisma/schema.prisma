@@ -551,7 +551,6 @@ model Permisos {
   parent_id   Int?      @unique
   parent      Permisos? @relation("ParentPermisos", fields: [parent_id], references: [id])
   child       Permisos? @relation("ParentPermisos")
-  slug        String    @db.VarChar(30)
 
   roles_permisos Roles_permisos[]
 }
@@ -570,14 +569,17 @@ model Roles_permisos {
 }
 
 model Configuraciones {
-  id                Int       @id @default(autoincrement())
-  clave             String    @db.VarChar(30)
-  valor             String    @db.VarChar(100)
-  detalle           String    @db.VarChar(50)
-  valor_default     String    @db.VarChar(100)
-  modificado_por    Usuarios  @relation(fields: [modificado_por_id], references: [id])
-  modificado_por_id Int
-  updatedAt         DateTime? @updatedAt
+  id                Int              @id @default(autoincrement())
+  clave             String           @db.VarChar(30)
+  valor             String           @db.VarChar(100)
+  detalle           String           @db.VarChar(50)
+  valor_default     String           @db.VarChar(100)
+  parent_id         Int?             @unique
+  parent            Configuraciones? @relation("ParentConfig", fields: [parent_id], references: [id])
+  child             Configuraciones? @relation("ParentConfig")
+  modificado_por    Usuarios?        @relation(fields: [modificado_por_id], references: [id])
+  modificado_por_id Int?
+  updatedAt         DateTime?        @updatedAt
 }
 
 model Registros_desactivados {

@@ -1,14 +1,20 @@
-# Keep node_modules out of version control
+# Keep itself Dockerfile out of building
+Dockerfile
+
+# Keep node_modules out of building
 node_modules
 
-# Keep environment variables out of version control
+# Keep environment variables out of building
 .env
 
-# Keep records files out of version control
-records
+# Keep git folder out of building
+.git/
 
-# Keep dist files out of version control
+# Keep dist files out of building
 dist
 
-# Keep unused folder out if version control
-unused
+# Keep unused folder out if building
+.unused
+
+# Keep volume folder out of building
+_volume
