@@ -28,8 +28,7 @@
             "descripcion": "Gestion de Servicios"
         },{
             "nombre": "services_groups",
-            "descripcion": "Gestion de Grupos de Servicios",
-            "parent_id": 0
+            "descripcion": "Gestion de Grupos de Servicios"
         },
         
         {
@@ -120,8 +119,7 @@
             "clave": "business_phone",
             "valor": "(809) 537-0200",
             "detalle": "Telefono del negocio principal",
-            "valor_default": "(809) 123-4567",
-            "parent_id": 1
+            "valor_default": "(809) 123-4567"
         }
     ]
 }

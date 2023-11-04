@@ -50,3 +50,14 @@ export const encryptPassword = async (password?: string | undefined): Promise<st
       return hashedPassword;
     })
 }
+
+export const isValidJSON = (json: string): boolean => {
+  try {
+    JSON.parse(json)
+    return true
+
+  } catch (error) {
+    return false
+
+  }
+}

@@ -546,7 +546,7 @@ model Roles {
 
 model Permisos {
   id          Int       @id @default(autoincrement())
-  nombre      String    @db.VarChar(50)
+  nombre      String    @unique() @db.VarChar(50)
   descripcion String?   @db.VarChar(100)
   parent_id   Int?      @unique
   parent      Permisos? @relation("ParentPermisos", fields: [parent_id], references: [id])
@@ -570,7 +570,7 @@ model Roles_permisos {
 
 model Configuraciones {
   id                Int              @id @default(autoincrement())
-  clave             String           @db.VarChar(30)
+  clave             String           @unique @db.VarChar(30)
   valor             String           @db.VarChar(100)
   detalle           String           @db.VarChar(50)
   valor_default     String           @db.VarChar(100)

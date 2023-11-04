@@ -5,6 +5,7 @@ import {path as ffmpegPath} from '@ffmpeg-installer/ffmpeg'
 import {path as ffprobe} from '@ffprobe-installer/ffprobe'
 import { UUID } from 'crypto'
 import { stringToUUID } from '../utils/filtering'
+import { getFilesFromDirectory } from '../utils/file.helpers'
 
 type typeFolder = {
     name: string
@@ -16,7 +17,7 @@ type audioFilesType = {
     letters: Array<typeFolder>
     numbers: Array<typeFolder>
     services: Array<typeFolder>
-    department: Array<typeFolder>
+    departments: Array<typeFolder>
     utils: Array<typeFolder>
 }
 
@@ -41,7 +42,7 @@ const audioFiles: audioFilesType = {
     letters: [],
     numbers: [],
     services: [],
-    department: [],
+    departments: [],
     utils: [],
 }
 
@@ -241,30 +242,7 @@ const concatAudioFiles = (paths: string[], outFileName: string): Promise<string>
     })
 }
 
-/**
- * Method to return a map from files that exist in directory path
- * @param dirPath 
- * @returns 
- */
-const getFilesFromDirectory = async (dirPath: string) => {
-    try {
-        const files = await fs.promises.readdir(dirPath)
-            
-        return files.map(file => {
-            const filePath = path.join(dirPath, file);
-            //const fileBuffer = fs.createReadStream(filePath)
-            //const fileBuffer = wav.decode(readStream)
-            return {
-                name: file.slice(0, file.indexOf('.')),
-                path: filePath,
-                //buffer: fileBuffer
-            };
-        })
-    } catch (error) {
-        console.error(`Could not read files from directory: ${dirPath}`, {error})
-        return null
-    }
-}
+
 
 /**
  * Method to rename exported file that matches with display UUID

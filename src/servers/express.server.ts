@@ -1,15 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import fileUpload from 'express-fileupload';
-import path from 'path';
-import { config } from 'dotenv';
+import path from 'path'
 import morganMiddleware from '../middlewares/expressLogger.middlewares';
 import logger from '../utils/logger';
 
 const App = express();
-
-// Load application configuration from configuration .env file
-config()
 
 const PORT: number = Number(process.env.PORT ?? 5000);
 

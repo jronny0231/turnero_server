@@ -6,7 +6,9 @@ import { encryptPassword } from "../utils/filtering";
 import { ZodError } from "zod"
 import { passwordChangeType, updateUserType, userCredentialType, userSchema } from "../schemas/user.schema";
 import { payloadType } from "../@types/auth";
+import { store, destroy } from "./redis.provider";
 import path from 'path'
+import logger from "../utils/logger";
 
 const prisma = new PrismaClient;
 
@@ -74,7 +76,7 @@ export const Login = async (req: Request, res: Response) => {
         const { data: user, ...result } = await checkUserAccount(body.username)
 
         if (user === undefined) {
-            return res.status(result.code).json({...result} as {success: boolean, message: string})
+            return res.status(result.code).json({...result})
         }
         
         /*
@@ -84,17 +86,21 @@ export const Login = async (req: Request, res: Response) => {
         */
        
         if (bcrypt.compareSync(body.password, user.password)) {
-            const token = createToken({
+            const payload: payloadType = {
                 id: user.id,
                 type: 'USER',
                 username: user.username,
                 correo: user.correo
-            })
+            }
+            const token = createToken(payload)
 
             await prisma.usuarios.update({
                 where: { id: user.id },
                 data: { token }
             })
+
+            // Store login data and token as key in redis
+            store(token, payload)
 
             return res.json({success: true, data: token})
         }
@@ -102,7 +108,7 @@ export const Login = async (req: Request, res: Response) => {
         return res.status(400).json({success: false, message: 'Username or Password not match'}); 
   
     } catch (error) {
-        console.error(`Error trying to login with username: ${body.username}`, {error})
+        logger.error(`Error trying to login with username: ${body.username}, ${error}`, console.error)
         return res.status(500).json({success: false, message: `Error trying to login with username: ${body.username}`, data: error})
     
     } finally {
@@ -123,7 +129,12 @@ export const Logout = async (_req: Request, res: Response) => {
             data: { token: null }
         })
 
+
+        // Destroying redis data using token
+        destroy(res.locals.token)
+
         res.locals.payload = null
+        res.locals.token = null
 
         return res.json({success:true, message: "You are logged out!"})
 

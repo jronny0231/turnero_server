@@ -1,8 +1,5 @@
 import {Request, Response, NextFunction } from "express";
 import { payloadType } from "../@types/auth";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
 
 type RolePermissions = {
   slug: string
@@ -22,7 +19,7 @@ const verbConversion = {
 }
 
 
-export const validateActiveUser = async (req: Request, res: Response, next: NextFunction) => {
+export const validateActiveUser = async (_req: Request, res: Response, next: NextFunction) => {
 
   const token: string | null = res.locals.token ?? null;
   const payload: payloadType | null = res.locals.payload ?? null;
@@ -39,6 +36,7 @@ export const validateActiveUser = async (req: Request, res: Response, next: Next
   }
 
   // Verify asynchronously if online user account has same token stored.
+  /*
   try {
     await prisma.$connect()
 
@@ -89,10 +87,6 @@ export const validateActiveUser = async (req: Request, res: Response, next: Next
       } as RolePermissions
     })
 
-    if (validatePermissions({req, data}) === false) {
-      return res.status(403).json({success: false, message: "You dont have permission to this action!"})
-    }
-
     return next()
 
   } catch (error) {
@@ -102,10 +96,11 @@ export const validateActiveUser = async (req: Request, res: Response, next: Next
   } finally {
     await prisma.$disconnect()
   }
-    
+
+  */
 }
 
-const validatePermissions = ({req, data}: {req: Request, data: RolePermissions[]}) => {
+export const validatePermissions = ({req, data}: {req: Request, data: RolePermissions[]}) => {
     
   const slug = req.originalUrl.split('/').slice(3).join('/').replace(/\d+/g,'#')
   const method = req.method.toUpperCase() as keyof typeof verbConversion

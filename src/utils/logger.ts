@@ -1,18 +1,20 @@
 import path from "path"
 import winston from "winston";
+import { verifyOrCreateFolder } from "./file.helpers";
 
-const LOG_FILE_NAME = process.env.LOG_FILE ?? "syslogs.log"
-const ERR_FILE_NAME = process.env.ERR_FILE ?? "errlogs.log"
 const FILE_PATH = path.resolve(process.env.LOG_PATH ?? "./logs")
 
-const LOG_FILE = path.join(FILE_PATH, LOG_FILE_NAME)
-const ERR_FILE = path.join(FILE_PATH, ERR_FILE_NAME)
+const HTTP_FILE = path.join(FILE_PATH, 'http.log')
+const ERR_FILE = path.join(FILE_PATH, 'err.log')
+const LOG_FILE = path.join(FILE_PATH, 'inf.log')
 
 enum ENV_TYPE {
     DEV = "development",
     PROD = "production"
 }
 const ENVIRONMENT = process.env.NODE_ENV as ENV_TYPE ?? ENV_TYPE.DEV
+
+verifyOrCreateFolder(FILE_PATH)
 
 const level = () => {
     const isDevelopment = ENVIRONMENT === ENV_TYPE.DEV
@@ -60,14 +62,19 @@ const format = winston.format.combine(
 )
 
 // Define which transports the logger must use to print out messages.
-// In this example, we are using three different transports
 const transports = [
+
     // Allow the use the console to print the messages
     new winston.transports.Console({ format: winston.format.colorize({ all: true }) }),
+
+    // Allow to print all the http level messages inside the http.log file
+    new winston.transports.File({ filename: HTTP_FILE, level: 'http' }),
+
     // Allow to print all the error level messages inside the error.log file
     new winston.transports.File({ filename: ERR_FILE, level: 'error' }),
+
     // Allow to print all the error message inside the log file
-    // (also the error log that are also printed inside the error.log)
+    // (also the logs that are also printed inside the error.log and http.log)
     new winston.transports.File({ filename: LOG_FILE }),
 ]
 

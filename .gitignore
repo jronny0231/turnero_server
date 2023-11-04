@@ -12,3 +12,6 @@ dist
 
 # Keep volume folder out of version control
 _volume
+
+# Keep log folder out of version control
+logs

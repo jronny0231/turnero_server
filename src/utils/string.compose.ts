@@ -20,7 +20,7 @@ export const prepareCallAudioInfo = (secuencia_ticket: string, siglas_departamen
 
     const deptMap: paramsType = {
         pos: 6,
-        type: 'department',
+        type: 'departments',
         name: siglas_departamento.toUpperCase()
     }
 
