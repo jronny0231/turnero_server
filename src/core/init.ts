@@ -7,6 +7,7 @@ import fs from 'fs';
 import logger from '../utils/logger';
 import prisma from '../models/db/prisma';
 import { PrismaClientInitializationError } from '@prisma/client/runtime/library';
+import { store } from '../providers/redis.provider';
 
 interface PermisosStore extends Omit<Permisos, 'id' | 'parent_id'> {
     parent_id?: number | null
@@ -21,17 +22,23 @@ type ConfigFile = {
 }
 
 const CONFIG_DATA_FILE_PATH = path.join(path.resolve('./init', 'init-config.json'))
+const SUPER_PERMISSIONS_FILE_PATH = path.join(path.resolve('./init', 'super-permissions.json'))
 
 const initialize = () => {
 
     try {
-        checkRedisConnection()
-            .then(() => logger.info(`Redis connected!`, console.log));
+        checkRedisConnection().then(() => {
+            logger.info(`Redis connected!`, console.log)
+            loadInRedisSuperUserPermissions()
+                .then(() => logger.info(`Super User default permissions data Loaded!`, console.log));
+        });
+
         checkDatabaseConnection().then(() => {
             logger.info(`Database connected!`, console.log)
             checkInitialDataOnDatabase()
                 .then(() => logger.info(`Initial data Loaded!`, console.log));
         });
+
         checkVolumeMediaDirectories()
             .then(() => logger.info(`Volume media files and directories Verified!`, console.log));
 
@@ -44,9 +51,8 @@ const initialize = () => {
 
 const checkRedisConnection = async () => {
 
-    const redis = init()
+    const redis = await init()
     if (redis === null) throw new Error("Redis instance returns null");
-    await redis.connect()
 }
 
 const checkDatabaseConnection = async () => {
@@ -119,6 +125,21 @@ const checkVolumeMediaDirectories = () => {
         loadExportedAudioFilesPath();
 
         resolve(true)
+    })
+}
+
+const loadInRedisSuperUserPermissions = () => {
+    return new Promise(async (resolve, reject) => {
+
+        if (fs.existsSync(SUPER_PERMISSIONS_FILE_PATH) === false)
+            return reject(`Super User Permissions data file not exist on path: ${SUPER_PERMISSIONS_FILE_PATH}`);
+
+
+        const stringPermissions = fs.readFileSync(SUPER_PERMISSIONS_FILE_PATH, { encoding: 'utf8' })
+        const result = await store('super-permissions', JSON.stringify(stringPermissions))
+        if (result === false) return reject('Could not store super user permissions data on Redis.')
+
+        return resolve(true)
     })
 }
 

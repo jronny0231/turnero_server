@@ -2,7 +2,7 @@ import { createClient } from 'redis';
 import logger from '../utils/logger';
 import { isValidJSON } from '../utils/filtering';
 
-const client = () => {
+const client = async () => {
     try {
         const client = createClient({
             password: process.env.REDIS_PASSWORD,
@@ -13,6 +13,8 @@ const client = () => {
         });
     
         if (client === undefined) throw new Error("creating redis client returns undefined!");
+
+        await client.connect()
     
         return client
     } catch (error) {
@@ -25,7 +27,7 @@ const store = async <T>(key: string, value: T) => {
     let data: string = "";
 
     try {
-        const instance = client()
+        const instance = await client()
         if (instance === null) return false
 
         if (typeof value === 'object') data = JSON.stringify(value)
@@ -44,7 +46,7 @@ const store = async <T>(key: string, value: T) => {
 
 const obtain = async <T>(key: string): Promise<T | null> => {
     try {
-        const instance = client()
+        const instance = await client()
         if (instance === null) return null
 
         const data = await instance.get(key)
@@ -62,7 +64,7 @@ const obtain = async <T>(key: string): Promise<T | null> => {
 
 const destroy = async(key: string): Promise<number | null> => {
     try {
-        const instance = client()
+        const instance = await client()
         if (instance === null) return null
 
         const count = await instance.del(key)

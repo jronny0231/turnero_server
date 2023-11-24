@@ -1,6 +1,6 @@
 import express from 'express';
 import * as controller from '../controllers/records.controller';
-import validateWith from '../middlewares/validation.middlewares';
+import { validateWith } from '../middlewares/validation.middlewares';
 import { getQueueCallAudio, setQueueCallAudio } from '../schemas/records.schema';
 
 const router = express.Router()

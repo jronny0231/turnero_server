@@ -123,7 +123,7 @@ export const StoreNewUser = async (req: Request, res: Response) => {
     }  
 }
 
-export const UpdateUser = async (req: Request<{id: number}>, res: Response) => {
+export const UpdateUser = async (req: Request, res: Response) => {
     const id: number = Number(req.params.id);
     const data: Usuarios = req.body;
 

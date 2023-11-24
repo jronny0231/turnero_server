@@ -1,111 +1,142 @@
 {
     "Permisos": [
         {
-            "nombre": "users",
+            "slug": "users",
+            "nombre": "Usuarios",
             "descripcion": "Gestion de Usuarios"
         },
         
         {
-            "nombre": "auth_profile",
+            "slug": "auth_profile",
+            "nombre": "Perfil",
             "descripcion": "Gestion de Usuario Logeado"
         },
         
         {
-            "nombre": "roles",
+            "slug": "roles",
+            "nombre": "Roles",
             "descripcion": "Gestion de Roles y Permisos"
         },
         
         {
-            "nombre": "queues",
+            "slug": "queues",
+            "nombre": "Turnos",
             "descripcion": "Gestion de Turnos"
         },{
-            "nombre": "queues_servs_depends",
+            "slug": "queues_servs_depends",
+            "nombre": "Servicios de Turnos",
             "descripcion": "Gestion de Servicios Dependientes por Turno"
+        },{
+            "slug": "queues_state",
+            "nombre": "Estado de Turnos",
+            "descripcion": "Gestion del Estado del Turno"
         },
         
         {
-            "nombre": "services",
+            "slug": "services",
+            "nombre": "Servicios",
             "descripcion": "Gestion de Servicios"
         },{
-            "nombre": "services_groups",
+            "slug": "services_groups",
+            "nombre": "Grupos de Servicios",
             "descripcion": "Gestion de Grupos de Servicios"
         },
         
         {
-            "nombre": "agents",
+            "slug": "agents",
+            "nombre": "Agentes",
             "descripcion": "Gestion de Agentes"
         },{
-            "nombre": "agents_types",
+            "slug": "agents_types",
+            "nombre": "Tipos de Agentes",
             "descripcion": "Gestion de Tipos de Agentes"
         },
         
         {
-            "nombre": "clients",
+            "slug": "clients",
+            "nombre": "Clientes",
             "descripcion": "Gestion de Clientes"
         },{
-            "nombre": "clients_details",
+            "slug": "clients_details",
+            "nombre": "Detalles de Clientes",
             "descripcion": "Gestion de Detalles de Clientes"
         },{
-            "nombre": "clients_refer",
+            "slug": "clients_refer",
+            "nombre": "Referimientos",
             "descripcion": "Gestion de Referimientos de Clientes"
         },{
-            "nombre": "clients_refer_types",
+            "slug": "clients_refer_types",
+            "nombre": "Tipos de Referimientos",
             "descripcion": "Gestion de Tipos de Refermientos de Clientes"
         },
         
         {
-            "nombre": "ars",
+            "slug": "ars",
+            "nombre": "ARS",
             "descripcion": "Gestion de ARS"
         },
         
         {
-            "nombre": "schedules",
+            "slug": "schedules",
+            "nombre": "Agendas",
             "descripcion": "Gestion de Visitas Agendadas"
         },{
-            "nombre": "schedules_types",
+            "slug": "schedules_types",
+            "nombre": "Tipos de Agendas",
             "descripcion": "Gestion de Tipos de Visitas Agendadas"
         },
         
         {
-            "nombre": "protocols",
+            "slug": "protocols",
+            "nombre": "Protocolos",
             "descripcion": "Gestion de Protocolos"
         },{
-            "nombre": "protocols_servs_ars",
+            "slug": "protocols_servs_ars",
+            "nombre": "Servicios en Protocolos",
             "descripcion": "Gestion de Servicios Por ARS en Protocolos"
         },{
-            "nombre": "protocols_types",
+            "slug": "protocols_types",
+            "nombre": "Tipos de Protocolos",
             "descripcion": "Gestion de Tipos de Protocolos"
         },
         
         {
-            "nombre": "offices",
+            "slug": "offices",
+            "nombre": "Sucursales",
             "descripcion": "Gestion de Sucursales"
         },{
-            "nombre": "offices_departments",
+            "slug": "offices_departments",
+            "nombre": "Departamentos por Sucursales",
             "descripcion": "Gestion de Departamentos por Sucursales"
+        },
+
+        {
+            "slug": "departments",
+            "nombre": "Departamentos",
+            "descripcion": "Gestion de Departamentos"
         },{
-            "nombre": "offs_depts_services",
+            "slug": "offs_depts_services",
+            "nombre": "Servicios por Departamentos",
             "descripcion": "Gestion de Servicios por Departamentos"
         },
 
         {
-            "nombre": "department",
-            "descripcion": "Gestion de Departamentos"
-        },
-
-        {
-            "nombre": "media",
+            "slug": "media",
+            "nombre": "Multimedia",
             "descripcion": "Gestion de Contenido Multimedia"
         },{
-            "nombre": "media_collections",
+            "slug": "media_collections",
+            "nombre": "Colecciones Multimedia",
             "descripcion": "Gestion de Colecciones Multimedia"
         },{
-            "nombre": "media_types",
+            "slug": "media_types",
+            "nombre": "Tipos de Multimedia",
             "descripcion": "Gestion de Tipos de Multimedia"
         },
 
         {
-            "nombre": "config",
+            "slug": "config",
+            "nombre": "Configuraciones",
             "descripcion": "Gestion de Configuraciones de Sistema"
         }
     ],

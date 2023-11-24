@@ -1,21 +1,17 @@
 import express from 'express';
 import * as controller from '../controllers/client.controller';
-import { middlewaresType } from '../@types/global';
-import { authToken } from '../middlewares/activeToken.middlewares';
-import { validateActiveUser } from '../middlewares/activeUser.middlewares';
-import validateWith from '../middlewares/validation.middlewares';
+import { validateWith } from '../middlewares/validation.middlewares';
 import { createClient, updateClient } from '../schemas/client.schema';
+import { middlewares } from '../utils/tools';
 
 const router = express.Router()
 
-const middlewares: middlewaresType = [authToken, validateActiveUser];
+router.get('/', middlewares('clients'), controller.GetAllClients);
+router.get('/:id', middlewares('clients'), controller.GetClientsById);
 
-router.get('/', middlewares, controller.GetAllClients);
-router.get('/:id', middlewares, controller.GetClientsById);
+router.post('/', middlewares('clients'), validateWith(createClient), controller.StoreNewClient);
+router.put('/', middlewares('clients'), validateWith(updateClient), controller.UpdateClient);
 
-router.post('/', middlewares, validateWith(createClient), controller.StoreNewClient);
-router.put('/', middlewares, validateWith(updateClient), controller.UpdateClient);
-
-router.delete('/:id', middlewares, controller.DeleteClient)
+router.delete('/:id', middlewares('clients'), controller.DeleteClient)
 
 export default router;

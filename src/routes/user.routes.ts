@@ -1,19 +1,21 @@
 import express from 'express';
-import { authToken } from '../middlewares/activeToken.middlewares';
 import { DeleteUser, GetAllUsers, GetUserById, StoreNewUser, UpdateUser } from '../controllers/user.controller';
-import { validateActiveUser } from '../middlewares/activeUser.middlewares';
-import { middlewaresType } from '../@types/global';
+import { middlewares } from '../utils/tools';
+import { validateWith } from '../middlewares/validation.middlewares';
+import { createUser, updateUser } from '../schemas/user.schema';
 
 const router = express.Router()
 
-const middlewares: middlewaresType = [authToken, validateActiveUser];
 
+router.get('/', middlewares('users'), GetAllUsers);
 
-router.get('/', middlewares, GetAllUsers);
-router.get('/:id', middlewares, GetUserById);
-router.post('/', middlewares, StoreNewUser);
-router.put('/:id', middlewares, UpdateUser);
-router.delete('/:id', middlewares, DeleteUser);
+router.get('/:id', middlewares('users'), GetUserById);
+
+router.post('/', middlewares('users'), validateWith(createUser), StoreNewUser);
+
+router.put('/:id', middlewares('users'), validateWith(updateUser), UpdateUser);
+
+router.delete('/:id', middlewares('users'), DeleteUser);
 
 
 export default router;

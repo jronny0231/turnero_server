@@ -1,15 +1,7 @@
 import {Request, Response, NextFunction } from "express";
-import { payloadType } from "../@types/auth";
+import { UserPermissions, payloadType } from "../@types/auth";
+import { obtain } from "../providers/redis.provider";
 
-type RolePermissions = {
-  slug: string
-  permit: {
-    create: boolean
-    update:boolean
-    read: boolean
-    delete: boolean
-  }
-}
 
 const verbConversion = {
   GET: "read",
@@ -100,21 +92,28 @@ export const validateActiveUser = async (_req: Request, res: Response, next: Nex
   */
 }
 
-export const validatePermissions = ({req, data}: {req: Request, data: RolePermissions[]}) => {
-    
-  const slug = req.originalUrl.split('/').slice(3).join('/').replace(/\d+/g,'#')
+export const validatePermission = (slug: UserPermissions['slug']) => 
+async (req: Request, res: Response, next: NextFunction) =>{
+  
+  const user: payloadType = res.locals.payload;
+  const token: string = res.locals.token;
+
   const method = req.method.toUpperCase() as keyof typeof verbConversion
   const verb = verbConversion[method]
 
-  const hasPermittion = data.map(entry => {
-    return (
-      entry.slug === slug
-      && entry.permit[verb as keyof typeof entry.permit]
-    )
-  }).filter(entry => entry)[0] ?? false
+  try {
+    if (user.type === 'SUPER') {
+      const permissions = await obtain<UserPermissions[]>('super-permissions')
+      console.log({user, slug, verb, token, permissions})
+      return next()
+    }
+    
+    const storeData = await obtain(token)
+    console.log({user, slug, verb, token, storeData})
+    next()
 
-  console.log({base: req.originalUrl, slug, method, verb, data, hasPermittion})
-  console.log({data})
-
-  return hasPermittion
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({success: false, message: 'Error getting permissions from redis', data: error})
+  }
 }

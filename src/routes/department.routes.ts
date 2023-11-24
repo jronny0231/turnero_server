@@ -1,24 +1,21 @@
 import express from 'express';
-import { authToken } from '../middlewares/activeToken.middlewares';
 import * as controller from '../controllers/department.controller';
-import { validateActiveUser } from '../middlewares/activeUser.middlewares';
-import { middlewaresType } from '../@types/global';
-import validateWith from '../middlewares/validation.middlewares'
-import { addRelatedServicesToDepartment, createDepartment, createDepartmentWithRelatedServices, updateDepartment } from '../schemas/department.schema';
+import { validateWith } from '../middlewares/validation.middlewares'
+import * as deptSchemas from '../schemas/department.schema';
+import { middlewares } from '../utils/tools';
 
 const router = express.Router()
 
-const middlewares: middlewaresType = [authToken, validateActiveUser];
 
-router.get('/', middlewares, controller.getAllDepartments)
-router.get('/:id', middlewares, controller.GetDepartmentById);
+router.get('/', middlewares('departments'), controller.getAllDepartments)
+router.get('/:id', middlewares('departments'), controller.GetDepartmentById);
 
-router.post('/', middlewares, validateWith(createDepartment), controller.StoreNewDepartment);
-router.post('/services', middlewares, validateWith(createDepartmentWithRelatedServices), controller.StoreNewDepartmentWithServices);
+router.post('/', middlewares('departments'), validateWith(deptSchemas.createDepartment), controller.StoreNewDepartment);
+router.post('/services', middlewares('offs_depts_services'), validateWith(deptSchemas.createDepartmentWithRelatedServices), controller.StoreNewDepartmentWithServices);
 
-router.put('/:id', middlewares, validateWith(updateDepartment), controller.UpdateDepartment);
-router.put('/:id/services', middlewares, validateWith(addRelatedServicesToDepartment), controller.AddServicesToDepartment);
+router.put('/:id', middlewares('departments'), validateWith(deptSchemas.updateDepartment), controller.UpdateDepartment);
+router.put('/:id/services', middlewares('offs_depts_services'), validateWith(deptSchemas.addRelatedServicesToDepartment), controller.AddServicesToDepartment);
 
-router.delete('/:id', middlewares, controller.DeleteDepartment);
+router.delete('/:id', middlewares('departments'), controller.DeleteDepartment);
 
 export default router

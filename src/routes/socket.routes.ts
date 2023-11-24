@@ -1,6 +1,7 @@
 import { socketToken } from '../middlewares/activeToken.middlewares';
 import server, { SocketType } from '../servers/socket.server';
 
+// Middleware settings
 server.use(socketToken)
 
 enum SOCKET_URIS {

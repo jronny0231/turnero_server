@@ -11,6 +11,7 @@ const PORT: number = Number(process.env.PORT ?? 5000);
 
 App.use(cors({
   origin: '*',
+  credentials: true,
   optionsSuccessStatus: 204 // some legacy browsers (IE11, various SmartTVs) choke on 204
 }));
 

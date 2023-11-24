@@ -546,8 +546,9 @@ model Roles {
 
 model Permisos {
   id          Int       @id @default(autoincrement())
+  slug        String    @unique() @db.VarChar(100)
   nombre      String    @unique() @db.VarChar(50)
-  descripcion String?   @db.VarChar(100)
+  descripcion String    @db.VarChar(100)
   parent_id   Int?      @unique
   parent      Permisos? @relation("ParentPermisos", fields: [parent_id], references: [id])
   child       Permisos? @relation("ParentPermisos")

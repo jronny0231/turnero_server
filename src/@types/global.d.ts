@@ -1,9 +1,25 @@
 import { NextFunction } from "express";
+import { UserPermissions } from "./auth";
+import "express";
 
 declare module "*.png";
 declare module "*.svg";
 declare module "*.jpeg";
 declare module "*.jpg";
+
+declare global {
+    namespace Express {
+        interface Request {
+            token?: string
+            payload?: payloadType
+        }
+    } 
+    interface local {
+        super: {
+            permissions?: UserPermissions[];
+        }
+    }
+} 
 
 
 export type middlewaresType =
