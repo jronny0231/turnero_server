@@ -7,7 +7,7 @@ export type payloadType = {
   correo: string
 }
 
-export interface UserPermissions extends Pick<Permisos, 'id' | 'slug'> {
+export interface UserPermissions extends Pick<Permisos, 'id' | 'slug' | 'parent_id'> {
   can: {
       create?: boolean
       read?: boolean

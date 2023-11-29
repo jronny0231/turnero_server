@@ -390,8 +390,7 @@ const getRolePermissions = async (rol_id: number): Promise<UserPermissions[]> =>
 
     return permissions.flatMap(entry =>
         entry.roles_permisos.map(permission => ({
-            id: entry.id,
-            slug: entry.slug,
+            ...entry,
             can: {
                 create: permission.create,
                 read: permission.read,

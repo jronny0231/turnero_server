@@ -1,6 +1,10 @@
 {
     "Permisos": [
         {
+            "slug": "admin",
+            "nombre": "Ajustes",
+            "descripcion": "Gestion de Configuracion"
+        },{
             "slug": "users",
             "nombre": "Usuarios",
             "descripcion": "Gestion de Usuarios"
