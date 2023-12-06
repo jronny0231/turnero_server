@@ -11,7 +11,7 @@
     "kill": "fuser -n tcp -k 5000"
   },
   "engines": {
-    "node": ">=16 <=18"
+    "node": ">=16"
   },
   "keywords": [],
   "author": "",
@@ -49,6 +49,6 @@
     "redis": "4.6.10",
     "socket.io": "4.7.2",
     "winston": "3.11.0",
-    "zod": "3.22.1"
+    "zod": "^3.22.4"
   }
 }
