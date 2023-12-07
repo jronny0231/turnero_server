@@ -136,7 +136,9 @@ const loadInRedisSuperUserPermissions = () => {
 
 
         const stringPermissions = fs.readFileSync(SUPER_PERMISSIONS_FILE_PATH, { encoding: 'utf8' })
-        const result = await store('super-permissions', JSON.stringify(stringPermissions))
+        const permissions = JSON.parse(stringPermissions)
+
+        const result = await store('super-permissions', permissions)
         if (result === false) return reject('Could not store super user permissions data on Redis.')
 
         return resolve(true)
