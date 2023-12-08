@@ -4,6 +4,7 @@ import { getSecret } from '../services/jwt.helper';
 import { payloadType } from '../@types/auth';
 import { SocketType } from '../servers/socket.server';
 import { ExtendedError } from 'socket.io/dist/namespace';
+import { destroy } from '../providers/redis.provider';
 
 const TOKEN_SECRET: string = getSecret()
 
@@ -24,8 +25,9 @@ export const authToken = (req: Request, res: Response, next: NextFunction) => {
   // Verify token (iss, lifetime, structure) from jwt
   return jwt.verify(token, TOKEN_SECRET as string, (err: any, decode: any ) => {
     
-    // If error return it
+    // If error delete redis key if exist and return it
     if (err){
+      destroy(token)
       return res.status(403).json({success:false, message: err.message});
     }
 
