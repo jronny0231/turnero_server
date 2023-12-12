@@ -174,8 +174,6 @@ export const GetPermissions = async (_req: Request, res: Response) => {
         console.error(`Error getting permissions of user: ${user.username}`, { error })
         return res.status(500).json({ success: false, message: `Error getting permissions of user: ${user.username}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
     }
 
 }
