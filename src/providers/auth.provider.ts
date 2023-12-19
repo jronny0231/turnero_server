@@ -10,6 +10,7 @@ import { store, destroy, obtain } from "./redis.provider";
 import path from 'path'
 import logger from "../utils/logger";
 import prisma from "../models/db/prisma";
+import { excludeFrom } from "../utils/object.helpers";
 
 const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD ?? "%-d3fP4$$w0rd"
 
@@ -173,8 +174,6 @@ export const GetPermissions = async (_req: Request, res: Response) => {
         console.error(`Error getting permissions of user: ${user.username}`, { error })
         return res.status(500).json({ success: false, message: `Error getting permissions of user: ${user.username}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
     }
 
 }
@@ -188,7 +187,8 @@ export const GetAccount = async (_req: Request, res: Response) => {
             if (data === null) {
                 return res.status(500).json({ message: "Super user data cant be recovery, check envirounment constants for SUPER_USER" })
             }
-            return res.json({ message: "Super user data recovery successfully", data })
+            const response = excludeFrom<typeof data>({data, keys: ['password']})
+            return res.json({ message: "Super user data recovery successfully", data: response })
         }
 
         const user = await prisma.usuarios.findFirst({
@@ -203,7 +203,9 @@ export const GetAccount = async (_req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: 'El usuario no esa activo, hable con su administrador' });
         }
 
-        return res.json({ success: true, message: "User data recovery successfully", data: user })
+        const userWithoutPassword = excludeFrom<typeof user>({data: user, keys: ['password']})
+
+        return res.json({ success: true, message: "User data recovery successfully", data: userWithoutPassword })
     } catch (error) {
         console.error(`Error trying get account data for user id: ${payload.id}`, { error })
         return res.status(500).json({ success: false, message: `Error trying get account data for user id: ${payload.id}`, data: error })

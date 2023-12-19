@@ -10,7 +10,7 @@ const App = express();
 const PORT: number = Number(process.env.PORT ?? 5000);
 
 App.use(cors({
-  origin: '*',
+  origin: ['http://localhost:5173', 'http://localhost:80', '*'],
   credentials: true,
   optionsSuccessStatus: 204 // some legacy browsers (IE11, various SmartTVs) choke on 204
 }));
