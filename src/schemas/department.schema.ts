@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { discriminateFilterService } from './service.schema'
 
 const departmentSchema = z.object({
+    id: z.coerce.number().gte(1),
     descripcion: z.string().min(4).max(30),
     siglas: z.string().min(4).max(5)
                 .regex(/^[A-Z]+$/,
@@ -17,9 +18,7 @@ export const createDepartment = z.object({
 })
 
 export const updateDepartment = z.object({
-    params: z.object({
-        id: z.coerce.number().gte(1)
-    }),
+    params: departmentSchema.pick({id: true}),
     
     query: z.object({
         sucursal_id: z.coerce.number().gte(1).optional()
