@@ -11,6 +11,7 @@ import path from 'path'
 import logger from "../utils/logger";
 import prisma from "../models/db/prisma";
 import { excludeFrom } from "../utils/object.helpers";
+import { SuperAgent } from "../@types/agent";
 
 const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD ?? "%-d3fP4$$w0rd"
 
@@ -55,8 +56,6 @@ export const verifyUserName = async (req: Request, res: Response) => {
         console.error(`Error trying check account of username: ${body.username}`, { error })
         return res.status(500).json({ success: false, message: `Error trying check account of username: ${body.username}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
     }
 }
 
@@ -119,8 +118,6 @@ export const Login = async (req: Request, res: Response) => {
         logger.error(`Error trying to login with username: ${body.username}, ${error}`, console.error)
         return res.status(500).json({ success: false, message: `Error trying to login with username: ${body.username}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
     }
 }
 
@@ -150,8 +147,6 @@ export const Logout = async (_req: Request, res: Response) => {
         console.error(`Error trying logging out user id: ${id}`, { error })
         return res.status(500).json({ success: false, message: `Error trying logging out user id: ${id}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
     }
 }
 
@@ -210,8 +205,61 @@ export const GetAccount = async (_req: Request, res: Response) => {
         console.error(`Error trying get account data for user id: ${payload.id}`, { error })
         return res.status(500).json({ success: false, message: `Error trying get account data for user id: ${payload.id}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
+    }
+}
+
+export const GetAgent = async (_req: Request, res: Response) => {
+    const payload: payloadType = res.locals.payload;
+
+    try {
+        if (payload.type === 'SUPER') {
+            const data = getSuperAgentData()
+            return res.json({ message: "Super user agent data recovery successfully", data })
+        }
+
+        const agent = await prisma.agentes.findFirst({
+            where: { usuario_id: payload.id },
+            include: {
+                tipo_agente: { select: {
+                    id: true,
+                    nombre: true,
+                    nombre_corto: true,
+                    descripcion: true,
+                    grupo_servicio_id: true,
+                    estatus: true
+                }},
+                departamento_sucursal: { select: {
+                    estatus: true,
+                    departamento: { select: {
+                        id: true,
+                        descripcion: true,
+                    }},
+                    sucursal: { select: {
+                        id: true,
+                        descripcion: true
+                    }}
+                }}
+            }
+        })
+
+        if (agent === null) {
+            return res.status(404).json({ success: false, message: 'Agent data not found' });
+        }
+
+        if (agent.estatus === false) {
+            return res.status(404).json({ success: false, message: 'El Agente no esa activo, hable con su administrador' });
+        }
+ 
+        if (agent.tipo_agente.estatus === false) {
+            return res.status(404).json({ success: false, message: 'El tipo del agente no esa activo, hable con su administrador' });
+        }
+
+        return res.json({ success: true, message: "Agent data recovery successfully", data: agent })
+    
+    } catch (error) {
+        console.error(`Error trying get agent data for user id: ${payload.id}`, { error })
+        return res.status(500).json({ success: false, message: `Error trying get agent data for user id: ${payload.id}`, data: error })
+
     }
 }
 
@@ -244,8 +292,6 @@ export const UpdateAccount = async (req: Request, res: Response) => {
         console.error(`Error trying update user data with id: ${id}`, { error })
         return res.status(500).json({ success: false, message: `Error trying update user data with id: ${id}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
     }
 }
 
@@ -292,8 +338,6 @@ export const UpdatePassword = async (req: Request, res: Response) => {
         console.error(`Error trying update user password with id: ${id}`, { error })
         return res.status(500).json({ success: false, message: `Error trying update user password with id: ${id}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
     }
 
 }
@@ -322,8 +366,6 @@ export const ResetPassword = async (req: Request, res: Response) => {
         console.error(`Error trying reset user password with id: ${id}`, { error })
         return res.status(500).json({ success: false, message: `Error trying reset user password with id: ${id}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
     }
 }
 
@@ -345,8 +387,6 @@ export const RefreshToken = async (_req: any, res: any) => {
         console.error(`Error trying refresh token to user: ${payload.username}`, { error })
         return res.status(500).json({ success: false, message: `Error trying refresh token to user: ${payload.username}`, data: error })
 
-    } finally {
-        await prisma.$disconnect()
     }
 }
 
@@ -414,6 +454,21 @@ const getSuperUserData = () => {
     if (username === undefined || password === undefined) return null
 
     return { id, type, username, password, correo }
+}
+
+const getSuperAgentData = () => {
+
+    const data: SuperAgent = {
+        id: 0,
+        nombre: process.env.SUPER_AGENT_NAME ?? 'NO_VALUE',
+        tipo_agente: { nombre: process.env.SUPER_AGENT_TYPE ?? 'NO_VALUE' },
+        departamento_sucursales: {
+            departamento: { descripcion: process.env.SUPER_AGENT_DEPARTMENT ?? 'NO_VALUE' },
+            sucursal: { descripcion: process.env.SUPER_AGENT_OFFICE ?? 'NO_VALUE' }
+        }
+    }
+
+    return data
 }
 
 const getSuperUserLogin = (credentials: { username: string, password: string }) => {
