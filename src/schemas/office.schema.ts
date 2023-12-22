@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 const officeSchema = z.object({
+    id: z.coerce.number().gte(1),
     descripcion: z.string().min(4).max(30),
     siglas: z.string().max(8)
                 .regex(/^[A-Z]+$/,
@@ -13,9 +14,7 @@ export const createOffice = z.object({
 });
 
 export const updateOffice = z.object({
-    params: z.object({
-        id: z.coerce.number().gte(1)
-    }),
+    params: officeSchema.pick({id: true}),
 
     body: officeSchema.partial()
 });
