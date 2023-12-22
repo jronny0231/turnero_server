@@ -18,6 +18,8 @@ router.get('/permissions', middlewares(), Auth.GetPermissions);
 
 router.get('/profile/', middlewares('auth_profile'), Auth.GetAccount);
 
+router.get('/agent', middlewares('auth_profile'), Auth.GetAgent);
+
 router.put('/profile/', middlewares('auth_profile'), validateWith(updateUser), Auth.UpdateAccount)
 
 router.put('/update-password/', middlewares(), urlToken, validateWith(passwordChange), Auth.UpdatePassword)
